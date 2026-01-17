@@ -6,8 +6,21 @@
 -- DROP TABLE IF EXISTS projects; -- 구 버전 테이블 삭제 보장
 -- DROP TABLE IF EXISTS users;
 
+-- -- 테스트 유저 생성 (비번: password123)
+-- INSERT INTO users (email, password, nickname) 
+-- VALUES ('test@font.com', '$2a$10$N.zmdr9k7uOCQb376NoUnutj8iAt6ValmpBk8O3s5.wKkQz6Fv.aO', 'Seunggwan');
+
+-- -- 프로젝트 생성
+-- -- 프로젝트 생성
+-- INSERT INTO font_project (owner_id, title) 
+-- VALUES (1, 'My First Font');
+
+-- -- 'A' 글자 생성 (빈 껍데기)
+-- INSERT INTO glyph (project_id, unicodes, glyph_name) 
+-- VALUES (1, ARRAY['0041'], 'A');
+
 -- 1. 사용자 테이블 (OAuth2 지원)
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255), -- 소셜 로그인 시 null 가능
@@ -21,7 +34,7 @@ CREATE TABLE users (
 );
 
 -- 2. 폰트 프로젝트 테이블 (UFO 3 구조)
-CREATE TABLE font_project (
+CREATE TABLE IF NOT EXISTS font_project (
     project_id      BIGSERIAL PRIMARY KEY,
     title           VARCHAR(255) NOT NULL,      -- 프로젝트 이름
     owner_id        BIGINT NOT NULL REFERENCES users(id), -- 생성자 ID (User 테이블 참조 유지)
@@ -41,7 +54,7 @@ CREATE TABLE font_project (
 );
 
 -- 3. 협업자 테이블 (M:N 관계)
-CREATE TABLE project_collaborators (
+CREATE TABLE IF NOT EXISTS project_collaborators (
     id BIGSERIAL PRIMARY KEY,
     project_id BIGINT NOT NULL REFERENCES font_project(project_id) ON DELETE CASCADE,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -52,7 +65,7 @@ CREATE TABLE project_collaborators (
 );
 
 -- 4. 글리프(글자) 테이블 (UFO 3 구조)
-CREATE TABLE glyph (
+CREATE TABLE IF NOT EXISTS glyph (
     -- 1. 식별자 및 관계
     glyph_uuid      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id      BIGINT NOT NULL,
@@ -88,5 +101,6 @@ CREATE TABLE glyph (
 );
 
 -- 검색 성능을 위한 인덱스
-CREATE INDEX idx_glyph_project ON glyph(project_id);
-CREATE INDEX idx_glyph_unicodes ON glyph USING GIN (unicodes); -- 유니코드로 검색 시 빠름
+-- 인덱스는 IF NOT EXISTS 구문이 DB에 따라 다름 (PostgreSQL 9.5+ 지원)
+CREATE INDEX IF NOT EXISTS idx_glyph_project ON glyph(project_id);
+CREATE INDEX IF NOT EXISTS idx_glyph_unicodes ON glyph USING GIN (unicodes); -- 유니코드로 검색 시 빠름
