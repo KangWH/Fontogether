@@ -4,7 +4,7 @@ Font 에디터를 웹에서 실시간으로 협업할 수 있게 하는 백엔�
 
 ## 기술 스택
 
-- **Java**: JDK 25
+- **Java**: JDK 21
 - **Framework**: Spring Boot 3.5.10-SNAPSHOT
 - **Database**: PostgreSQL 16
 - **실시간 통신**: WebSocket (STOMP)
@@ -198,6 +198,7 @@ docker-compose up -d
 ```bash
 ./gradlew bootRun
 ```
+*(The application will automatically load configuration from the `.env` file)*
 
 또는
 

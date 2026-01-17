@@ -12,7 +12,8 @@ spring:
     init:
       mode: always # always: 서버 켤 때마다 schema.sql 실행 (데이터 초기화됨)
       
-
+server:
+  port: 80
 
 logging:
   level:
