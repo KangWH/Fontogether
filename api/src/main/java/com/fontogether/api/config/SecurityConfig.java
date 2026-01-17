@@ -29,6 +29,7 @@ public class SecurityConfig {
                 // Public Endpoints
                 .requestMatchers("/", "/error", "/ws/**").permitAll()
                 .requestMatchers("/api/users/**").permitAll() // 로컬 로그인/가입
+                .requestMatchers("/api/projects/**").permitAll() // 프로젝트 API
                 .requestMatchers("/test/**").permitAll()      // 테스트용
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated()

@@ -1,10 +1,10 @@
 -- 기존 테이블이 있다면 삭제 (개발 단계라 편의상 추가 / 배포 땐 주의!)
-DROP TABLE IF EXISTS glyph;
-DROP TABLE IF EXISTS project_collaborators;
-DROP TABLE IF EXISTS font_project;
-DROP TABLE IF EXISTS glyphs;
-DROP TABLE IF EXISTS projects; -- 구 버전 테이블 삭제 보장
-DROP TABLE IF EXISTS users;
+-- DROP TABLE IF EXISTS glyph;
+-- DROP TABLE IF EXISTS project_collaborators;
+-- DROP TABLE IF EXISTS font_project;
+-- DROP TABLE IF EXISTS glyphs;
+-- DROP TABLE IF EXISTS projects; -- 구 버전 테이블 삭제 보장
+-- DROP TABLE IF EXISTS users;
 
 -- 1. 사용자 테이블 (OAuth2 지원)
 CREATE TABLE users (

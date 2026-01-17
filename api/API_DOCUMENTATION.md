@@ -1,8 +1,8 @@
 # Fontogether API Documentation
 
 ## 🌐 Base Config
-- **REST Base URL**: `http://localhost:8080`
-- **WebSocket URL**: `ws://localhost:8080/ws`
+- **REST Base URL**: `http://localhost:444`
+- **WebSocket URL**: `ws://localhost:444/ws`
 - **Socket Client**: SockJS supported
 
 ---
@@ -40,6 +40,20 @@
     "provider": "local",
     "createdAt": "..."
   }
+  ```
+
+### 3. 사용자 프로젝트 목록 조회
+- **URL**: `GET /api/projects/user/{userId}`
+- **Response**: `200 OK` (List of Projects)
+  ```json
+  [
+    {
+      "projectId": 1,
+      "title": "My First Font",
+      "ownerId": 1,
+      "createdAt": "..."
+    }
+  ]
   ```
 
 ---

@@ -4,7 +4,7 @@ services:
     build: .
     container_name: fontogether_api
     ports:
-      - "80:80"
+      - "444:444"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
