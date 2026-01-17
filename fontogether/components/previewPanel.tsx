@@ -1,0 +1,195 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import { FontData } from "@/types/font";
+import { ChevronUp, ChevronDown } from "lucide-react";
+
+interface PreviewPanelProps {
+  fontData: FontData;
+  onHeightChange?: (height: number) => void;
+  initialHeight?: number;
+}
+
+export default function PreviewPanel({ fontData, onHeightChange, initialHeight = 256 }: PreviewPanelProps) {
+  const [previewText, setPreviewText] = useState("The quick brown fox jumps over the lazy dog.");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('ENG');
+  const [selectedScript, setSelectedScript] = useState<string>('DFLT');
+  const [activeFeatures, setActiveFeatures] = useState<Set<string>>(new Set());
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(initialHeight);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartY = useRef<number>(0);
+  const resizeStartHeight = useRef<number>(0);
+
+  const availableLanguages = Object.keys(fontData.features?.languages || {});
+  const availableFeatures = [
+    ...Object.keys(fontData.features?.gsub || {}),
+    ...Object.keys(fontData.features?.gpos || {}),
+  ];
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    setIsResizing(true);
+    resizeStartY.current = e.clientY;
+    resizeStartHeight.current = panelHeight;
+    e.preventDefault();
+  };
+
+  const handleResize = (e: MouseEvent) => {
+    if (!isResizing) return;
+    const deltaY = resizeStartY.current - e.clientY; // 위로 드래그하면 높이 증가
+    const newHeight = Math.max(100, Math.min(600, resizeStartHeight.current + deltaY));
+    setPanelHeight(newHeight);
+    onHeightChange?.(newHeight);
+  };
+
+  const handleResizeEnd = () => {
+    setIsResizing(false);
+  };
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleResize);
+      window.addEventListener('mouseup', handleResizeEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleResize);
+        window.removeEventListener('mouseup', handleResizeEnd);
+      };
+    }
+  }, [isResizing]);
+
+  if (isCollapsed) {
+    return (
+      <div className="border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
+        <button
+          onClick={() => setIsCollapsed(false)}
+          className="w-full p-2 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-zinc-800 select-none"
+        >
+          <ChevronUp size={16} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="flex flex-col border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900"
+      style={{ height: `${panelHeight}px` }}
+    >
+      {/* 리사이즈 핸들 */}
+      <div
+        onMouseDown={handleResizeStart}
+        className="h-1 cursor-ns-resize hover:bg-blue-500 bg-transparent select-none"
+      />
+
+      {/* 컨트롤 */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* 좌측: OpenType 기능 선택 */}
+        <div className="w-48 border-r border-gray-200 dark:border-zinc-700 overflow-y-auto p-2">
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium mb-1 select-none">OpenType 기능</label>
+              <div className="space-y-1">
+                {availableFeatures.map(feature => (
+                  <label key={feature} className="flex items-center gap-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={activeFeatures.has(feature)}
+                      onChange={(e) => {
+                        const newSet = new Set(activeFeatures);
+                        if (e.target.checked) {
+                          newSet.add(feature);
+                        } else {
+                          newSet.delete(feature);
+                        }
+                        setActiveFeatures(newSet);
+                      }}
+                      className="w-3 h-3"
+                    />
+                    <span>{feature}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-medium mb-1 select-none">언어</label>
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
+                >
+                  {availableLanguages.map(lang => (
+                    <option key={lang} value={lang}>{lang}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 select-none">스크립트</label>
+                <select
+                  value={selectedScript}
+                  onChange={(e) => setSelectedScript(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
+                >
+                  <option value="DFLT">DFLT</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-medium mb-1 select-none">글꼴 크기</label>
+                <input
+                  type="number"
+                  value={48}
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 select-none">줄 간격</label>
+                <input
+                  type="number"
+                  value={1.5}
+                  step="0.1"
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1 select-none">트래킹</label>
+                <input
+                  type="number"
+                  value={0}
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 우측: 미리보기 영역 */}
+        <div className="flex-1 flex flex-col">
+          <div className="p-2 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between">
+            <span className="text-xs font-medium select-none">미리보기</span>
+            <button
+              onClick={() => setIsCollapsed(true)}
+              className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded"
+            >
+              <ChevronDown size={16} />
+            </button>
+          </div>
+          <div className="flex-1 p-4 overflow-y-auto">
+            <textarea
+              value={previewText}
+              onChange={(e) => setPreviewText(e.target.value)}
+              placeholder="텍스트를 입력하세요..."
+              className="w-full h-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+              style={{
+                fontFamily: fontData.metadata.familyName,
+                fontSize: '48px',
+                lineHeight: '1.5',
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

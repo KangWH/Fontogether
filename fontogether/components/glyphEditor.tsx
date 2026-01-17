@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useLayoutEffect, useCallback, act } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback, act } from "react";
 import paper from "paper";
 
 interface GlyphEditorProps {
@@ -11,9 +11,10 @@ interface GlyphEditorProps {
   } | null;
   onZoomComplete: () => void;
   selectedTool: string;
+  onToolChange?: (tool: string) => void;
 }
 
-export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedTool }: GlyphEditorProps) {
+export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedTool, onToolChange }: GlyphEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const projectRef = useRef<paper.Project | null>(null);
 
@@ -22,10 +23,20 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
   const penToolRef = useRef<paper.Tool | null>(null);
   const curveToolRef = useRef<paper.Tool | null>(null);
   const handToolRef = useRef<paper.Tool | null>(null);
+  const rectangleToolRef = useRef<paper.Tool | null>(null);
+  const circleToolRef = useRef<paper.Tool | null>(null);
+  const zoomToolRef = useRef<paper.Tool | null>(null);
+  const rulerToolRef = useRef<paper.Tool | null>(null);
 
   const drawingPathRef = useRef<paper.Path | null>(null);
   const selectedSegmentsRef = useRef<paper.Segment[]>([]);
   const highlightItemsRef = useRef<paper.Path.Circle[]>([]);
+  const rulerLineRef = useRef<paper.Path.Line | null>(null);
+  const rulerInfoRef = useRef<paper.PointText | null>(null);
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+  const [selectedPointInfo, setSelectedPointInfo] = useState<{ x: number; y: number } | null>(null);
+  const [selectionBounds, setSelectionBounds] = useState<{ width: number; height: number } | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
 
   const clearHighlights = useCallback(() => {
     highlightItemsRef.current.forEach(item => item.remove());
@@ -65,11 +76,11 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
       const subGridSize = 10; // 소그리드
       const viewBounds = paper.view.bounds;
 
-      // 그리드 범위 설정 (충분히 넓게)
-      const startX = Math.floor(viewBounds.left / gridSize) * gridSize;
-      const endX = Math.ceil(viewBounds.right / gridSize) * gridSize;
-      const startY = Math.floor(viewBounds.top / gridSize) * gridSize;
-      const endY = Math.ceil(viewBounds.bottom / gridSize) * gridSize;
+      // 그리드 범위 설정 (전체 영역)
+      const startX = -32768;
+      const endX = 32767;
+      const startY = -32768;
+      const endY = 32767;
 
       // 세로선 그리기
       for (let x = startX; x <= endX; x += subGridSize) {
@@ -141,14 +152,132 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
       return false;
     };
 
-    // shows baseline
+    // Font metrics and guides
+    const metrics = {
+      unitsPerEm: 1000,
+      ascender: 800,
+      descender: -200,
+      capHeight: 700,
+      xHeight: 500,
+      advanceWidth: 500,
+    };
+
+    // Baseline
     const baseline = new paper.Path.Line(
-      new paper.Point(0, 600),
-      new paper.Point(1000, 600),
+      new paper.Point(-32768, 0),
+      new paper.Point(32767, 0),
     );
     baseline.strokeColor = new paper.Color("#e5e7eb");
+    baseline.strokeWidth = 1;
     baseline.guide = true;
     baseline.locked = true;
+    const baselineLabel = new paper.PointText({
+      point: new paper.Point(-32760, 0),
+      content: 'baseline',
+      fillColor: '#9ca3af',
+      fontSize: 10,
+      guide: true,
+      locked: true,
+    });
+
+    // X-height
+    const xHeight = new paper.Path.Line(
+      new paper.Point(-32768, metrics.xHeight),
+      new paper.Point(32767, metrics.xHeight),
+    );
+    xHeight.strokeColor = new paper.Color("#d1d5db");
+    xHeight.strokeWidth = 1;
+    xHeight.guide = true;
+    xHeight.locked = true;
+    const xHeightLabel = new paper.PointText({
+      point: new paper.Point(-32760, metrics.xHeight),
+      content: 'x-height',
+      fillColor: '#9ca3af',
+      fontSize: 10,
+      guide: true,
+      locked: true,
+    });
+
+    // Cap height
+    const capHeight = new paper.Path.Line(
+      new paper.Point(-32768, metrics.capHeight),
+      new paper.Point(32767, metrics.capHeight),
+    );
+    capHeight.strokeColor = new paper.Color("#d1d5db");
+    capHeight.strokeWidth = 1;
+    capHeight.guide = true;
+    capHeight.locked = true;
+    const capHeightLabel = new paper.PointText({
+      point: new paper.Point(-32760, metrics.capHeight),
+      content: 'cap-height',
+      fillColor: '#9ca3af',
+      fontSize: 10,
+      guide: true,
+      locked: true,
+    });
+
+    // Ascender
+    const ascender = new paper.Path.Line(
+      new paper.Point(-32768, metrics.ascender),
+      new paper.Point(32767, metrics.ascender),
+    );
+    ascender.strokeColor = new paper.Color("#9ca3af");
+    ascender.strokeWidth = 1;
+    ascender.guide = true;
+    ascender.locked = true;
+    const ascenderLabel = new paper.PointText({
+      point: new paper.Point(-32760, metrics.ascender),
+      content: 'ascender',
+      fillColor: '#9ca3af',
+      fontSize: 10,
+      guide: true,
+      locked: true,
+    });
+
+    // Descender
+    const descender = new paper.Path.Line(
+      new paper.Point(-32768, metrics.descender),
+      new paper.Point(32767, metrics.descender),
+    );
+    descender.strokeColor = new paper.Color("#9ca3af");
+    descender.strokeWidth = 1;
+    descender.guide = true;
+    descender.locked = true;
+    const descenderLabel = new paper.PointText({
+      point: new paper.Point(-32760, metrics.descender),
+      content: 'descender',
+      fillColor: '#9ca3af',
+      fontSize: 10,
+      guide: true,
+      locked: true,
+    });
+
+    // Origin line (vertical)
+    const originLine = new paper.Path.Line(
+      new paper.Point(0, -32768),
+      new paper.Point(0, 32767),
+    );
+    originLine.strokeColor = new paper.Color("#e5e7eb");
+    originLine.strokeWidth = 1;
+    originLine.guide = true;
+    originLine.locked = true;
+
+    // Advance width line
+    let advanceWidthLine: paper.Path.Line | null = null;
+    let advanceWidthDragging = false;
+
+    const updateAdvanceWidthLine = () => {
+      if (advanceWidthLine) advanceWidthLine.remove();
+      advanceWidthLine = new paper.Path.Line(
+        new paper.Point(metrics.advanceWidth, -32768),
+        new paper.Point(metrics.advanceWidth, 32767),
+      );
+      advanceWidthLine.strokeColor = new paper.Color("#3b82f6");
+      advanceWidthLine.strokeWidth = 2;
+      advanceWidthLine.guide = true;
+      advanceWidthLine.locked = false;
+    };
+    updateAdvanceWidthLine();
 
     // sample shape
     const path = new paper.Path({
@@ -194,6 +323,15 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     let selectionRect: paper.Path.Rectangle | null = null;
 
     pointerToolRef.current.onMouseDown = (event: paper.ToolEvent) => {
+      // Advance width line 드래그 체크
+      if (advanceWidthLine) {
+        const hitResult = advanceWidthLine.hitTest(event.point, { tolerance: 10 });
+        if (hitResult) {
+          advanceWidthDragging = true;
+          return;
+        }
+      }
+
       const hitResult = paper.project.hitTest(event.point, {
         segments: true,
         handles: true,
@@ -249,6 +387,21 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     pointerToolRef.current.onMouseDrag = (event: paper.ToolEvent) => {
       if (panOnDrag(event)) return;
 
+      // Advance width line 드래그
+      if (advanceWidthDragging && advanceWidthLine) {
+        metrics.advanceWidth = Math.max(0, event.point.x);
+        updateAdvanceWidthLine();
+        // 모든 글리프 윤곽선과 advance width 선을 함께 이동
+        const deltaX = event.delta.x;
+        paper.project.activeLayer.children.forEach((item: any) => {
+          if (item instanceof paper.Path && !item.guide && item !== advanceWidthLine) {
+            item.translate(new paper.Point(deltaX, 0));
+          }
+        });
+        paper.view.draw();
+        return;
+      }
+
       if (selectionRect) {
         selectionRect.segments[1].point.x = event.point.x;
         selectionRect.segments[2].point = event.point;
@@ -266,6 +419,12 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     };
 
     pointerToolRef.current.onMouseUp = (event: paper.ToolEvent) => {
+      if (advanceWidthDragging) {
+        advanceWidthDragging = false;
+        paper.view.draw();
+        return;
+      }
+
       if (selectionRect) {
         const bounds = selectionRect.bounds;
 
@@ -448,8 +607,277 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
       canvasRef.current!.style.cursor = 'grab';
     };
 
-    // Delete points
+    // Rectangle tool
+    rectangleToolRef.current = new paper.Tool();
+    let rectStartPoint: paper.Point | null = null;
+    let currentRect: paper.Path.Rectangle | null = null;
+    let rectDoubleClickTimer: number | null = null;
+
+    rectangleToolRef.current.onMouseDown = (event: paper.ToolEvent) => {
+      if (panOnDrag(event)) return;
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? event.modifiers.meta : event.modifiers.control;
+      const isShift = event.modifiers.shift;
+
+      // 더블클릭 처리
+      if (rectDoubleClickTimer) {
+        clearTimeout(rectDoubleClickTimer);
+        rectDoubleClickTimer = null;
+        // 다이얼로그 표시 (임시로 기본값 사용)
+        const width = 100;
+        const height = 100;
+        const rect = new paper.Path.Rectangle({
+          point: event.point,
+          size: [width, height],
+          strokeColor: 'black',
+          strokeWidth: 2,
+        });
+        return;
+      }
+
+      rectDoubleClickTimer = window.setTimeout(() => {
+        rectDoubleClickTimer = null;
+      }, 300);
+
+      rectStartPoint = event.point;
+      if (cmdOrCtrl) {
+        // 중심점 기준
+        rectStartPoint = event.point;
+      }
+    };
+
+    rectangleToolRef.current.onMouseDrag = (event: paper.ToolEvent) => {
+      if (panOnDrag(event)) return;
+      if (!rectStartPoint) return;
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? event.modifiers.meta : event.modifiers.control;
+      const isShift = event.modifiers.shift;
+
+      let from = rectStartPoint;
+      let to = event.point;
+
+      if (cmdOrCtrl) {
+        // 중심점 기준
+        const size = event.point.subtract(rectStartPoint).multiply(2);
+        from = rectStartPoint.subtract(size.divide(2));
+        to = rectStartPoint.add(size.divide(2));
+      }
+
+      if (isShift) {
+        // 정사각형
+        const size = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+        to = new paper.Point(
+          from.x + (to.x > from.x ? size : -size),
+          from.y + (to.y > from.y ? size : -size)
+        );
+      }
+
+      if (currentRect) currentRect.remove();
+      currentRect = new paper.Path.Rectangle({
+        from: from,
+        to: to,
+        strokeColor: 'black',
+        strokeWidth: 2,
+      });
+      paper.view.draw();
+    };
+
+    rectangleToolRef.current.onMouseUp = () => {
+      if (currentRect) {
+        currentRect.closed = true;
+        currentRect = null;
+      }
+      rectStartPoint = null;
+    };
+
+    // Circle tool
+    circleToolRef.current = new paper.Tool();
+    let circleStartPoint: paper.Point | null = null;
+    let currentCircle: paper.Path.Ellipse | null = null;
+
+    circleToolRef.current.onMouseDown = (event: paper.ToolEvent) => {
+      if (panOnDrag(event)) return;
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? event.modifiers.meta : event.modifiers.control;
+      circleStartPoint = event.point;
+    };
+
+    circleToolRef.current.onMouseDrag = (event: paper.ToolEvent) => {
+      if (panOnDrag(event)) return;
+      if (!circleStartPoint) return;
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? event.modifiers.meta : event.modifiers.control;
+      const isShift = event.modifiers.shift;
+
+      let bounds: paper.Rectangle;
+      if (cmdOrCtrl) {
+        // 중심점 기준
+        const radius = circleStartPoint.getDistance(event.point);
+        bounds = new paper.Rectangle(
+          circleStartPoint.subtract([radius, radius]),
+          new paper.Size(radius * 2, radius * 2)
+        );
+      } else {
+        bounds = new paper.Rectangle(circleStartPoint, event.point);
+      }
+
+      if (isShift) {
+        // 원 (정사각형에 내접)
+        const size = Math.max(bounds.width, bounds.height);
+        bounds = new paper.Rectangle(
+          bounds.center.subtract([size / 2, size / 2]),
+          new paper.Size(size, size)
+        );
+      }
+
+      if (currentCircle) currentCircle.remove();
+      currentCircle = new paper.Path.Ellipse({
+        rectangle: bounds,
+        strokeColor: 'black',
+        strokeWidth: 2,
+      });
+      paper.view.draw();
+    };
+
+    circleToolRef.current.onMouseUp = () => {
+      if (currentCircle) {
+        currentCircle.closed = true;
+        currentCircle = null;
+      }
+      circleStartPoint = null;
+    };
+
+    // Zoom tool
+    zoomToolRef.current = new paper.Tool();
+    let zoomStartPoint: paper.Point | null = null;
+    let zoomRect: paper.Path.Rectangle | null = null;
+
+    zoomToolRef.current.onMouseDown = (event: paper.ToolEvent) => {
+      if (panOnDrag(event)) return;
+      zoomStartPoint = event.point;
+      if (event.modifiers.shift) {
+        // 줌 아웃
+        const view = paper.view;
+        view.zoom = Math.max(0.05, view.zoom / 1.2);
+        view.draw();
+      }
+    };
+
+    zoomToolRef.current.onMouseDrag = (event: paper.ToolEvent) => {
+      if (panOnDrag(event)) return;
+      if (!zoomStartPoint) return;
+
+      if (zoomRect) zoomRect.remove();
+      zoomRect = new paper.Path.Rectangle({
+        from: zoomStartPoint,
+        to: event.point,
+        strokeColor: '#3b82f6',
+        fillColor: new paper.Color(59, 130, 246, 0.1),
+        strokeWidth: 1,
+        guide: true,
+      });
+      paper.view.draw();
+    };
+
+    zoomToolRef.current.onMouseUp = (event: paper.ToolEvent) => {
+      if (zoomRect && zoomStartPoint) {
+        const bounds = zoomRect.bounds;
+        if (bounds.width > 10 && bounds.height > 10) {
+          // 선택 영역에 맞춰 확대
+          const view = paper.view;
+          const viewSize = view.viewSize;
+          const scaleX = viewSize.width / bounds.width;
+          const scaleY = viewSize.height / bounds.height;
+          const newZoom = Math.min(scaleX, scaleY) * view.zoom;
+          
+          if (newZoom >= 0.05 && newZoom <= 50) {
+            view.zoom = newZoom;
+            view.center = bounds.center;
+          }
+        } else if (!event.modifiers.shift) {
+          // 클릭만 한 경우 줌 인
+          const view = paper.view;
+          const mousePosition = view.viewToProject(event.point);
+          view.zoom = Math.min(50, view.zoom * 1.2);
+          const newMousePosition = view.viewToProject(event.point);
+          view.center = view.center.add(mousePosition.subtract(newMousePosition));
+        }
+        zoomRect.remove();
+        zoomRect = null;
+        paper.view.draw();
+      }
+      zoomStartPoint = null;
+    };
+
+    // Ruler tool
+    rulerToolRef.current = new paper.Tool();
+    let rulerStartPoint: paper.Point | null = null;
+
+    rulerToolRef.current.onMouseDown = (event: paper.ToolEvent) => {
+      if (panOnDrag(event)) return;
+      rulerStartPoint = event.point;
+      if (rulerLineRef.current) rulerLineRef.current.remove();
+      if (rulerInfoRef.current) rulerInfoRef.current.remove();
+    };
+
+    rulerToolRef.current.onMouseDrag = (event: paper.ToolEvent) => {
+      if (panOnDrag(event)) return;
+      if (!rulerStartPoint) return;
+
+      if (rulerLineRef.current) rulerLineRef.current.remove();
+      rulerLineRef.current = new paper.Path.Line({
+        from: rulerStartPoint,
+        to: event.point,
+        strokeColor: '#3b82f6',
+        strokeWidth: 1,
+        guide: true,
+      });
+
+      const dx = event.point.x - rulerStartPoint.x;
+      const dy = event.point.y - rulerStartPoint.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+      const info = `거리: ${distance.toFixed(2)}\nX: ${dx.toFixed(2)}\nY: ${dy.toFixed(2)}\n각도: ${angle.toFixed(2)}°\n시작: (${rulerStartPoint.x.toFixed(2)}, ${rulerStartPoint.y.toFixed(2)})\n끝: (${event.point.x.toFixed(2)}, ${event.point.y.toFixed(2)})`;
+      console.log(info);
+
+      if (rulerInfoRef.current) rulerInfoRef.current.remove();
+      
+      // 배경 사각형
+      const bgRect = new paper.Path.Rectangle({
+        point: event.point.add([5, -60]),
+        size: [150, 55],
+        fillColor: new paper.Color(1, 1, 1, 0.9),
+        strokeColor: '#3b82f6',
+        strokeWidth: 1,
+        guide: true,
+      });
+      
+      rulerInfoRef.current = new paper.PointText({
+        point: event.point.add([10, -10]),
+        content: info,
+        fillColor: 'black',
+        fontSize: 10,
+        guide: true,
+      });
+
+      paper.view.draw();
+    };
+
+    rulerToolRef.current.onMouseUp = () => {
+      rulerStartPoint = null;
+    };
+
+    // Delete points and keyboard shortcuts
     paper.view.onKeyDown = (event: any) => {
+      const key = event.key.toLowerCase();
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? event.modifiers.meta : event.modifiers.control;
+      const isShift = event.modifiers.shift;
+
       if (event.key === 'delete' || event.key === 'backspace') {
         if (selectedSegmentsRef.current.length > 0) {
           event.preventDefault();
@@ -464,13 +892,142 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
 
           selectedSegmentsRef.current = [];
           clearHighlights();
-
           paper.view.draw();
         }
       } else if (event.key === 'space') {
         // panning
         isSpacePressed = true;
         canvasRef.current!.style.cursor = 'grab';
+      } else if ((key === '-' || key === '_') && !cmdOrCtrl) {
+        // 줌 감소
+        event.preventDefault();
+        const view = paper.view;
+        view.zoom = Math.max(0.05, view.zoom - 0.1);
+        view.draw();
+      } else if ((key === '=' || key === '+') && !cmdOrCtrl) {
+        // 줌 증가
+        event.preventDefault();
+        const view = paper.view;
+        view.zoom = Math.min(50, view.zoom + 0.1);
+        view.draw();
+      } else if (key === '1') {
+        // 100% 줌
+        event.preventDefault();
+        const view = paper.view;
+        view.zoom = 1.0;
+        view.draw();
+      } else if (key === 'f') {
+        // 화면에 맞추기
+        event.preventDefault();
+        // TODO: 글리프에 맞춰 줌 조정
+      } else if (key === 'p') {
+        // 펜 도구
+        event.preventDefault();
+        penToolRef.current?.activate();
+        onToolChange?.('pen');
+      } else if (key === 'v' || key === 'a') {
+        // 포인터 도구
+        event.preventDefault();
+        pointerToolRef.current?.activate();
+        onToolChange?.('pointer');
+      } else if (key === '`' || key === 'c') {
+        // 곡률 도구
+        event.preventDefault();
+        curveToolRef.current?.activate();
+        onToolChange?.('curve');
+      } else if (key === 'm') {
+        // 사각형 도구
+        event.preventDefault();
+        rectangleToolRef.current?.activate();
+        onToolChange?.('rectangle');
+      } else if (key === 'l') {
+        // 원 도구
+        event.preventDefault();
+        circleToolRef.current?.activate();
+        onToolChange?.('circle');
+      } else if (key === 'z') {
+        // 줌 도구
+        event.preventDefault();
+        zoomToolRef.current?.activate();
+        onToolChange?.('zoom');
+      } else if (key === 'r') {
+        // 자 도구
+        event.preventDefault();
+        rulerToolRef.current?.activate();
+        onToolChange?.('ruler');
+      } else if (key === 'h') {
+        // 손 도구
+        event.preventDefault();
+        handToolRef.current?.activate();
+        onToolChange?.('hand');
+      } else if (key === 'd') {
+        // 곡선 방향 반대
+        event.preventDefault();
+        selectedSegmentsRef.current.forEach(seg => {
+          const temp = seg.handleIn;
+          seg.handleIn = seg.handleOut.multiply(-1);
+          seg.handleOut = temp.multiply(-1);
+        });
+        refreshHighlights();
+        paper.view.draw();
+      } else if (event.key === 'Enter' && selectedSegmentsRef.current.length > 0) {
+        // 점 이동 모달
+        event.preventDefault();
+        // TODO: 모달 표시
+      } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        // 방향키로 점 이동
+        if (selectedSegmentsRef.current.length > 0) {
+          event.preventDefault();
+          const unit = isShift ? 10 : cmdOrCtrl ? 100 : 1;
+          const delta = new paper.Point(
+            event.key === 'ArrowRight' ? unit : event.key === 'ArrowLeft' ? -unit : 0,
+            event.key === 'ArrowUp' ? -unit : event.key === 'ArrowDown' ? unit : 0
+          );
+          selectedSegmentsRef.current.forEach(seg => {
+            seg.point = seg.point.add(delta);
+          });
+          refreshHighlights();
+          paper.view.draw();
+        }
+      }
+
+      // 외부 복붙 기능 (Cmd/Ctrl + V)
+      if (cmdOrCtrl && key === 'v') {
+        const activeElement = document.activeElement;
+        if (!(activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement)) {
+          navigator.clipboard.readText().then(text => {
+            try {
+              // SVG 파싱 시도
+              const parser = new DOMParser();
+              const svgDoc = parser.parseFromString(text, 'image/svg+xml');
+              const svgElement = svgDoc.querySelector('svg');
+              if (svgElement) {
+                // SVG를 paper.js로 임포트
+                paper.project.importSVG(svgElement, (item: any) => {
+                  if (item) {
+                    // 색상 제거하고 검은색 윤곽선만
+                    item.strokeColor = new paper.Color(0, 0, 0);
+                    item.fillColor = null;
+                    item.strokeWidth = 2;
+                    // guide 속성 제거
+                    if (item.children) {
+                      item.children.forEach((child: any) => {
+                        child.guide = false;
+                        child.strokeColor = new paper.Color(0, 0, 0);
+                        child.fillColor = null;
+                      });
+                    }
+                    paper.view.draw();
+                  }
+                });
+              }
+            } catch (e) {
+              console.error('Failed to paste SVG:', e);
+            }
+          }).catch(e => {
+            console.error('Failed to read clipboard:', e);
+          });
+        }
       }
     };
 
@@ -560,18 +1117,98 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     } else if (selectedTool === 'hand') {
       finishDrawing();
       handToolRef.current?.activate();
+    } else if (selectedTool === 'rectangle') {
+      finishDrawing();
+      rectangleToolRef.current?.activate();
+    } else if (selectedTool === 'circle') {
+      finishDrawing();
+      circleToolRef.current?.activate();
+    } else if (selectedTool === 'zoom') {
+      finishDrawing();
+      zoomToolRef.current?.activate();
+    } else if (selectedTool === 'ruler') {
+      finishDrawing();
+      rulerToolRef.current?.activate();
     }
 
     onZoomComplete();
   }, [zoomAction, selectedTool, finishDrawing]);
 
+  // Update mouse position, selection info, and zoom level
+  useEffect(() => {
+    if (!paper.project || !canvasRef.current) return;
+
+    const updateMouseInfo = (e: MouseEvent) => {
+      const view = paper.view;
+      const point = view.viewToProject(new paper.Point(e.offsetX, e.offsetY));
+      setMousePosition({ x: Math.round(point.x), y: Math.round(point.y) });
+    };
+
+    const updateSelectionInfo = () => {
+      if (selectedSegmentsRef.current.length > 0) {
+        const firstPoint = selectedSegmentsRef.current[0].point;
+        setSelectedPointInfo({ x: Math.round(firstPoint.x), y: Math.round(firstPoint.y) });
+
+        if (selectedSegmentsRef.current.length > 1) {
+          const points = selectedSegmentsRef.current.map(s => s.point);
+          const minX = Math.min(...points.map(p => p.x));
+          const maxX = Math.max(...points.map(p => p.x));
+          const minY = Math.min(...points.map(p => p.y));
+          const maxY = Math.max(...points.map(p => p.y));
+          setSelectionBounds({
+            width: Math.round(maxX - minX),
+            height: Math.round(maxY - minY),
+          });
+        } else {
+          setSelectionBounds(null);
+        }
+      } else {
+        setSelectedPointInfo(null);
+        setSelectionBounds(null);
+      }
+    };
+
+    const updateZoomLevel = () => {
+      if (paper.view) {
+        setZoomLevel(Math.round(paper.view.zoom * 100));
+      }
+    };
+
+    canvasRef.current.addEventListener('mousemove', updateMouseInfo);
+    const interval = setInterval(() => {
+      updateSelectionInfo();
+      updateZoomLevel();
+    }, 100);
+
+    return () => {
+      if (canvasRef.current) {
+        canvasRef.current.removeEventListener('mousemove', updateMouseInfo);
+      }
+      clearInterval(interval);
+    };
+  }, []);
+
   return (
-    <div className="w-full h-full bg-white overflow-hidden">
+    <div className="w-full h-full bg-white overflow-hidden relative">
       <canvas
         ref={canvasRef}
         className="w-full h-full touch-none"
         data-paper-resize="true"
       />
+      
+      {/* 좌표 정보 표시 */}
+      <div className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white text-xs p-2 rounded font-mono space-y-1 select-none">
+        {mousePosition && (
+          <div>마우스: ({mousePosition.x}, {mousePosition.y})</div>
+        )}
+        {selectedPointInfo && (
+          <div>선택된 점: ({selectedPointInfo.x}, {selectedPointInfo.y})</div>
+        )}
+        {selectionBounds && (
+          <div>선택 영역: {selectionBounds.width} × {selectionBounds.height}</div>
+        )}
+        <div className="border-t border-white border-opacity-30 mt-1 pt-1">줌: {zoomLevel}%</div>
+      </div>
     </div>
   )
 }
