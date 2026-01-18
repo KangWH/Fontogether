@@ -4,7 +4,7 @@
 -- DROP TABLE IF EXISTS font_project;
 -- DROP TABLE IF EXISTS glyphs;
 -- DROP TABLE IF EXISTS projects; -- 구 버전 테이블 삭제 보장
--- DROP TABLE IF EXISTS users;
+-- DROP TABLE IF EXISTS users CASCADE;
 
 -- -- 테스트 유저 생성 (비번: password123)
 -- INSERT INTO users (email, password, nickname) 
