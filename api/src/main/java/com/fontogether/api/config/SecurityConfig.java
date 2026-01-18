@@ -8,10 +8,14 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.fontogether.api.service.CustomOAuth2UserService;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final CustomOAuth2UserService customOAuth2UserService;
 
 
 
@@ -33,6 +37,12 @@ public class SecurityConfig {
                 .requestMatchers("/test/**").permitAll()      // 테스트용
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated()
+            )
+            .oauth2Login(oauth2 -> oauth2
+                .userInfoEndpoint(userInfo -> userInfo
+                    .userService(customOAuth2UserService) // 사용자 정보 저장 로직 연결
+                )
+                .defaultSuccessUrl("/", true) // 로그인 성공 시 리다이렉트
             );
         
         return http.build();

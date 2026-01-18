@@ -56,6 +56,24 @@
   ]
   ```
 
+### 4. 구글 로그인 (OAuth 2.0)
+> 브라우저 리다이렉트를 통한 인증 방식입니다.
+
+#### 1) 로그인 시작 (Authorization Request)
+- **URL**: `/oauth2/authorization/google`
+- **Method**: `GET`
+- **Action**: 브라우저에서 이 주소로 이동하면 구글 로그인 페이지로 리다이렉트됩니다.
+
+#### 2) 로그인 성공 (Redirect)
+- **Behavior**:
+  - 사용자가 구글에서 로그인을 완료하면 서버가 인증을 처리합니다.
+  - 성공 후 Root URL (`/`)로 리다이렉트됩니다.
+  - 인증 세션(`JSESSIONID`)이 생성되어 쿠키에 저장됩니다.
+
+#### 3) 오류 발생
+- **Log**: 서버 로그에 `OAuth2AuthenticationException`이 기록됩니다.
+- **Behavior**: 기본적으로 `/login?error` 페이지로 리다이렉트됩니다.
+
 ---
 
 ## ✒️ Glyph API (REST)

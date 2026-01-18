@@ -218,9 +218,30 @@ curl http://localhost:8080/health
 ```yaml
 spring:
   datasource:
+  datasource:
     url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+```
+
+### 환경 변수 (.env)
+이 프로젝트는 보안을 위해 `.env` 파일을 사용합니다. 프로젝트 루트에 `.env` 파일을 생성하고 다음 값을 채워주세요:
+
+```properties
+POSTGRES_USER=myuser
+POSTGRES_PASSWORD=mypassword
+POSTGRES_DB=mydb
+PGADMIN_EMAIL=admin@example.com
+PGADMIN_PASSWORD=adminpass
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
 ## 향후 계획
