@@ -160,7 +160,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
         <div>
           <label className="block text-xs font-medium mb-1">태그</label>
           <div className="flex flex-wrap gap-1">
-            {['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'purple', 'gray'].map(tag => (
+            {['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'gray'].map(tag => (
               <button
                 key={tag}
                 onClick={() => {
@@ -170,7 +170,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
                     : [tag]; // 하나만 선택 가능
                   updateGlyph('tags', newTags);
                 }}
-                className={`px-2 py-1 text-xs rounded ${
+                className={`px-2 py-1 text-xs rounded-full ${
                   firstGlyph.tags?.includes(tag)
                     ? `bg-${tag}-500 text-white`
                     : 'bg-gray-200 dark:bg-zinc-700'

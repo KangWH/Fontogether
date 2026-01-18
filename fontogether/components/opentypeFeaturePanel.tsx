@@ -75,31 +75,31 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
   const isEnabled = typeof currentValue === 'object' ? currentValue.enabled : true;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-gray-100 dark:bg-zinc-800 w-[90vw] h-[90vh] rounded-lg shadow-xl flex flex-col">
+    <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
+      <div className="bg-gray-100 dark:bg-zinc-800 w-[90vw] h-[90vh] rounded-xl shadow-xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+        <div className="text-sm flex items-center justify-between p-2 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
               className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center"
               title="닫기"
             />
-            <h2 className="text-lg font-bold select-none">OpenType 기능 편집</h2>
+            <h2 className="font-bold select-none">OpenType 기능 편집</h2>
           </div>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <div className="w-64 border-r border-gray-300 dark:border-zinc-600 overflow-y-auto bg-gray-50 dark:bg-zinc-900 resize-x">
-            <div className="p-2 space-y-1">
+          <div className="w-64 border-r border-gray-300 dark:border-zinc-600 overflow-y-auto bg-gray-100 dark:bg-zinc-900 resize-x">
+            <div className="p-2">
               <button
                 onClick={() => {
                   setSelectedSection('languages');
                   setSelectedItem(null);
                 }}
-                className={`w-full text-left px-3 py-2 rounded text-sm ${
-                  selectedSection === 'languages' ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                className={`w-full text-left p-3 rounded-lg text-sm ${
+                  selectedSection === 'languages' ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''
                 }`}
               >
                 언어/스크립트
@@ -109,8 +109,8 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
                   setSelectedSection('tables');
                   setSelectedItem(null);
                 }}
-                className={`w-full text-left px-3 py-2 rounded text-sm ${
-                  selectedSection === 'tables' ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                className={`w-full text-left p-3 rounded-lg text-sm ${
+                  selectedSection === 'tables' ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''
                 }`}
               >
                 테이블
@@ -120,8 +120,8 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
                   setSelectedSection('classes');
                   setSelectedItem(null);
                 }}
-                className={`w-full text-left px-3 py-2 rounded text-sm ${
-                  selectedSection === 'classes' ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                className={`w-full text-left p-3 rounded-lg text-sm ${
+                  selectedSection === 'classes' ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''
                 }`}
               >
                 클래스
@@ -131,8 +131,8 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
                   setSelectedSection('lookups');
                   setSelectedItem(null);
                 }}
-                className={`w-full text-left px-3 py-2 rounded text-sm ${
-                  selectedSection === 'lookups' ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                className={`w-full text-left p-3 rounded-lg text-sm ${
+                  selectedSection === 'lookups' ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
                 }`}
               >
                 Lookups
@@ -142,8 +142,8 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
                   setSelectedSection('gsub');
                   setSelectedItem(null);
                 }}
-                className={`w-full text-left px-3 py-2 rounded text-sm ${
-                  selectedSection === 'gsub' ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                className={`w-full text-left p-3 rounded-lg text-sm ${
+                  selectedSection === 'gsub' ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
                 }`}
               >
                 GSUB
@@ -153,8 +153,8 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
                   setSelectedSection('gpos');
                   setSelectedItem(null);
                 }}
-                className={`w-full text-left px-3 py-2 rounded text-sm ${
-                  selectedSection === 'gpos' ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                className={`w-full text-left p-3 rounded-lg text-sm ${
+                  selectedSection === 'gpos' ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
                 }`}
               >
                 GPOS
@@ -163,7 +163,7 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
 
             {/* Items list */}
             <div className="p-2 border-t border-gray-200 dark:border-zinc-700">
-              <div className="flex items-center justify-between mb-2">
+              <div className="p-1 flex items-center justify-between mb-2">
                 <h3 className="text-sm font-bold">
                   {selectedSection === 'languages' && '언어'}
                   {selectedSection === 'tables' && '테이블'}
@@ -196,8 +196,8 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
                 {getItems(selectedSection).map(item => (
                   <div
                     key={item}
-                    className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer ${
-                      selectedItem === item ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100 dark:hover:bg-zinc-800'
+                    className={`flex items-center justify-between p-2 rounded-md ${
+                      selectedItem === item ? 'bg-gray-200 dark:bg-zinc-700' : ''
                     }`}
                     onClick={() => setSelectedItem(item)}
                   >
@@ -244,7 +244,7 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
                   {/* 줄 번호 */}
                   <div className="w-12 bg-gray-100 dark:bg-zinc-800 text-right p-4 font-mono text-xs text-gray-500 select-none border-r border-gray-200 dark:border-zinc-700">
                     {codeValue.split('\n').map((_, i) => (
-                      <div key={i} className="leading-6">{i + 1}</div>
+                      <div key={i} className="!leading-[20px]">{i + 1}</div>
                     ))}
                   </div>
                   {/* 코드 에디터 */}
@@ -260,7 +260,7 @@ export default function OpenTypeFeaturePanel({ fontData, onClose, onFontDataChan
                         updateFeature(selectedSection, selectedItem, e.target.value);
                       }
                     }}
-                    className="flex-1 p-4 font-mono text-sm border-0 resize-none focus:outline-none bg-white dark:bg-zinc-900"
+                    className="flex-1 p-4 font-mono text-sm !leading-[20px] border-0 resize-none focus:outline-none bg-white dark:bg-zinc-900"
                     placeholder="코드를 입력하세요..."
                     spellCheck={false}
                   />

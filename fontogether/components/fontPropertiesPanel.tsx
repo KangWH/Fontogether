@@ -2,6 +2,7 @@
 
 import { FontData } from "@/types/font";
 import { useState } from "react";
+import Spacer from "./spacer";
 
 interface FontPropertiesPanelProps {
   fontData: FontData;
@@ -38,28 +39,22 @@ export default function FontPropertiesPanel({ fontData, onFontDataChange }: Font
   return (
     <div className="h-full overflow-y-auto">
       {/* Segmented Control */}
-      <div className="p-2 flex gap-1 bg-gray-100 dark:bg-zinc-800 rounded-lg m-2">
+      <div className="p-1 flex bg-gray-100 dark:bg-zinc-800 rounded-full mx-1 mt-1">
         <button
           onClick={() => setActiveTab('metadata')}
-          className={`flex-1 px-3 py-1 rounded text-xs ${activeTab === 'metadata' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
+          className={`flex-1 px-2 py-1 rounded-full text-xs ${activeTab === 'metadata' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
         >
           메타데이터
         </button>
         <button
           onClick={() => setActiveTab('metrics')}
-          className={`flex-1 px-3 py-1 rounded text-xs ${activeTab === 'metrics' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
+          className={`flex-1 px-2 py-1 rounded-full text-xs ${activeTab === 'metrics' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
         >
           메트릭
         </button>
         <button
-          onClick={() => setActiveTab('language')}
-          className={`flex-1 px-3 py-1 rounded text-xs ${activeTab === 'language' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
-        >
-          언어
-        </button>
-        <button
           onClick={() => setActiveTab('panose')}
-          className={`flex-1 px-3 py-1 rounded text-xs ${activeTab === 'panose' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
+          className={`flex-1 px-2 py-1 rounded-full text-xs ${activeTab === 'panose' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
         >
           PANOSE
         </button>
@@ -121,6 +116,11 @@ export default function FontPropertiesPanel({ fontData, onFontDataChange }: Font
                 onChange={(e) => updateMetadata('version', e.target.value)}
                 className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
               />
+            </div>
+            <div>
+              <button className="px-3 py-1 bg-blue-500 text-white rounded text-sm">
+                언어별 메타데이터 편집
+              </button>
             </div>
           </div>
         )}
@@ -190,15 +190,6 @@ export default function FontPropertiesPanel({ fontData, onFontDataChange }: Font
                 className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
               />
             </div>
-          </div>
-        )}
-
-        {activeTab === 'language' && (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-500">언어별 메타데이터는 별도 모달에서 편집할 수 있습니다.</p>
-            <button className="px-3 py-1 bg-blue-500 text-white rounded text-sm">
-              언어별 메타데이터 편집
-            </button>
           </div>
         )}
 

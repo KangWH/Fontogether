@@ -157,7 +157,7 @@ export default function GlyphGrid({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto select-none">
+    <div className="flex-1 h-full overflow-y-auto select-none">
       <div
         className="p-2 grid gap-2"
         style={{

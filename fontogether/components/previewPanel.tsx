@@ -12,9 +12,14 @@ interface PreviewPanelProps {
 
 export default function PreviewPanel({ fontData, onHeightChange, initialHeight = 256 }: PreviewPanelProps) {
   const [previewText, setPreviewText] = useState("The quick brown fox jumps over the lazy dog.");
+
   const [selectedLanguage, setSelectedLanguage] = useState<string>('ENG');
   const [selectedScript, setSelectedScript] = useState<string>('DFLT');
   const [activeFeatures, setActiveFeatures] = useState<Set<string>>(new Set());
+  const [fontSize, setFontSize] = useState<number>(48);
+  const [lineHeight, setLineHeight] = useState<number>(1.5);
+  const [tracking, setTracking] = useState<number>(0);
+
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [panelHeight, setPanelHeight] = useState(initialHeight);
   const [isResizing, setIsResizing] = useState(false);
@@ -59,10 +64,11 @@ export default function PreviewPanel({ fontData, onHeightChange, initialHeight =
 
   if (isCollapsed) {
     return (
-      <div className="border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
+      <div className="px-2 py-1 border-t border-gray-200 flex flex-row justify-between items-center dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
+        <span className="text-xs font-medium select-none">미리보기</span>
         <button
           onClick={() => setIsCollapsed(false)}
-          className="w-full p-2 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-zinc-800 select-none"
+          className="p-1 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-zinc-800 select-none rounded"
         >
           <ChevronUp size={16} />
         </button>
@@ -78,7 +84,7 @@ export default function PreviewPanel({ fontData, onHeightChange, initialHeight =
       {/* 리사이즈 핸들 */}
       <div
         onMouseDown={handleResizeStart}
-        className="h-1 cursor-ns-resize hover:bg-blue-500 bg-transparent select-none"
+        className="h-1 cursor-ns-resize bg-transparent select-none"
       />
 
       {/* 컨트롤 */}
@@ -139,7 +145,8 @@ export default function PreviewPanel({ fontData, onHeightChange, initialHeight =
                 <label className="block text-xs font-medium mb-1 select-none">글꼴 크기</label>
                 <input
                   type="number"
-                  value={48}
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
                   className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
                 />
               </div>
@@ -147,8 +154,9 @@ export default function PreviewPanel({ fontData, onHeightChange, initialHeight =
                 <label className="block text-xs font-medium mb-1 select-none">줄 간격</label>
                 <input
                   type="number"
-                  value={1.5}
+                  value={lineHeight}
                   step="0.1"
+                  onChange={(e) => setLineHeight(Number(e.target.value))}
                   className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
                 />
               </div>
@@ -156,7 +164,8 @@ export default function PreviewPanel({ fontData, onHeightChange, initialHeight =
                 <label className="block text-xs font-medium mb-1 select-none">트래킹</label>
                 <input
                   type="number"
-                  value={0}
+                  value={tracking}
+                  onChange={(e) => setTracking(Number(e.target.value))}
                   className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
                 />
               </div>
@@ -166,7 +175,7 @@ export default function PreviewPanel({ fontData, onHeightChange, initialHeight =
 
         {/* 우측: 미리보기 영역 */}
         <div className="flex-1 flex flex-col">
-          <div className="p-2 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between">
+          <div className="px-2 py-1 border-b border-gray-200 dark:border-zinc-700 flex items-center justify-between">
             <span className="text-xs font-medium select-none">미리보기</span>
             <button
               onClick={() => setIsCollapsed(true)}

@@ -118,4 +118,4 @@ export type FilterCategory =
   | 'opentype-class' 
   | 'none';
 
-export type ColorTag = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'indigo' | 'purple' | 'gray';
+export type ColorTag = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'gray';

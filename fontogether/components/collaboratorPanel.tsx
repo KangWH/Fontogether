@@ -87,22 +87,22 @@ export default function CollaboratePanel() {
   return (
     <div className="h-full flex flex-col">
       {/* Segmented Control */}
-      <div className="p-1 flex gap-1 bg-gray-100 dark:bg-zinc-800 rounded-full m-2">
+      <div className="p-1 flex bg-gray-100 dark:bg-zinc-800 rounded-full mx-1 mt-1">
         <button
           onClick={() => setActiveTab('collaborators')}
-          className={`flex-1 px-3 py-1 rounded-full text-xs ${activeTab === 'collaborators' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
+          className={`flex-1 px-2 py-1 rounded-full text-xs ${activeTab === 'collaborators' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
         >
           협업자
         </button>
         <button
           onClick={() => setActiveTab('notes')}
-          className={`flex-1 px-3 py-1 rounded-full text-xs ${activeTab === 'notes' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
+          className={`flex-1 px-2 py-1 rounded-full text-xs ${activeTab === 'notes' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
         >
           메모
         </button>
         <button
           onClick={() => setActiveTab('chat')}
-          className={`flex-1 px-3 py-1 rounded-full text-xs ${activeTab === 'chat' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
+          className={`flex-1 px-2 py-1 rounded-full text-xs ${activeTab === 'chat' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
         >
           채팅
         </button>

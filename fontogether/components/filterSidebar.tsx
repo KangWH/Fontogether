@@ -10,17 +10,6 @@ interface FilterSidebarProps {
   onFilterChange: (category: FilterCategory, value?: string) => void;
 }
 
-const colorTagMap: { [key in ColorTag]: string } = {
-  red: '🔴',
-  orange: '🟠',
-  yellow: '🟡',
-  green: '🟢',
-  blue: '🔵',
-  indigo: '🟣',
-  purple: '🟣',
-  gray: '⚪',
-};
-
 export default function FilterSidebar({ fontData, filterCategory, filterValue, onFilterChange }: FilterSidebarProps) {
   // 태그별 글리프 수 계산
   const tagCounts = useMemo(() => {
@@ -56,48 +45,64 @@ export default function FilterSidebar({ fontData, filterCategory, filterValue, o
   }, [fontData.glyphs]);
 
   const handleTagClick = (tag: string) => {
-    if (filterCategory === 'tag' && filterValue === tag) {
-      onFilterChange('none');
-    } else {
-      onFilterChange('tag', tag);
-    }
+    onFilterChange('tag', tag);
   };
 
   const handleGroupClick = (group: string) => {
-    if (filterCategory === 'group' && filterValue === group) {
-      onFilterChange('none');
-    } else {
-      onFilterChange('group', group);
-    }
+    onFilterChange('group', group);
   };
 
   const handleClassClick = (className: string) => {
-    if (filterCategory === 'opentype-class' && filterValue === className) {
-      onFilterChange('none');
-    } else {
-      onFilterChange('opentype-class', className);
-    }
+    onFilterChange('opentype-class', className);
   };
+
+  const colorMap = {
+  red: 'bg-red-500',
+  orange: 'bg-orange-500',
+  yellow: 'bg-yellow-500',
+  green: 'bg-green-500',
+  blue: 'bg-blue-500',
+  purple: 'bg-purple-500',
+  gray: 'bg-gray-500',
+};
 
   return (
     <div className="h-full overflow-y-auto select-none">
+      <div className="p-2">
+        <div className="space-y-1">
+          <button
+            onClick={() => onFilterChange('none')}
+            className={`w-full text-left p-3 rounded-lg text-sm flex items-center justify-between ${
+              filterCategory === 'none' ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              
+              <span className="capitalize">모두 보기</span>
+            </span>
+            <span className="text-xs text-gray-500">{fontData.glyphs.length}</span>
+          </button>
+        </div>
+      </div>
+
       {/* 태그 섹션 */}
       <div className="p-2">
         <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2 px-2">태그</h3>
         <div className="space-y-1">
-          {(['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'purple', 'gray'] as ColorTag[]).map(tag => {
+          {(['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'gray'] as ColorTag[]).map(tag => {
             const count = tagCounts[tag] || 0;
             const isSelected = filterCategory === 'tag' && filterValue === tag;
+            const colorName = colorMap[tag];
             return (
               <button
                 key={tag}
                 onClick={() => handleTagClick(tag)}
-                className={`w-full text-left px-2 py-1 rounded text-sm flex items-center justify-between hover:bg-gray-100 dark:hover:bg-zinc-800 ${
-                  isSelected ? 'bg-blue-100 dark:bg-blue-900' : ''
+                className={`w-full text-left p-3 rounded-lg text-sm flex items-center justify-between ${
+                  isSelected ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <span>{colorTagMap[tag]}</span>
+                  <span className={`w-3 h-3 rounded-full ${colorName}`} />
                   <span className="capitalize">{tag}</span>
                 </span>
                 {count > 0 && <span className="text-xs text-gray-500">{count}</span>}
@@ -109,7 +114,7 @@ export default function FilterSidebar({ fontData, filterCategory, filterValue, o
 
       {/* 그룹 섹션 */}
       {Object.keys(fontData.groups || {}).length > 0 && (
-        <div className="p-2 border-t border-gray-200 dark:border-zinc-700">
+        <div className="p-2 dark:border-zinc-700">
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2 px-2">그룹</h3>
           <div className="space-y-1">
             {Object.keys(fontData.groups || {}).map(group => {
@@ -119,8 +124,8 @@ export default function FilterSidebar({ fontData, filterCategory, filterValue, o
                 <button
                   key={group}
                   onClick={() => handleGroupClick(group)}
-                  className={`w-full text-left px-2 py-1 rounded text-sm flex items-center justify-between hover:bg-gray-100 dark:hover:bg-zinc-800 ${
-                    isSelected ? 'bg-blue-100 dark:bg-blue-900' : ''
+                  className={`w-full text-left p-3 rounded-lg text-sm flex items-center justify-between ${
+                    isSelected ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''
                   }`}
                 >
                   <span>{group}</span>
@@ -134,7 +139,7 @@ export default function FilterSidebar({ fontData, filterCategory, filterValue, o
 
       {/* OpenType 클래스 섹션 */}
       {Object.keys(classCounts).length > 0 && (
-        <div className="p-2 border-t border-gray-200 dark:border-zinc-700">
+        <div className="p-2 dark:border-zinc-700">
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2 px-2">OpenType 클래스</h3>
           <div className="space-y-1">
             {Object.keys(classCounts).map(className => {
@@ -144,8 +149,8 @@ export default function FilterSidebar({ fontData, filterCategory, filterValue, o
                 <button
                   key={className}
                   onClick={() => handleClassClick(className)}
-                  className={`w-full text-left px-2 py-1 rounded text-sm flex items-center justify-between hover:bg-gray-100 dark:hover:bg-zinc-800 ${
-                    isSelected ? 'bg-blue-100 dark:bg-blue-900' : ''
+                  className={`w-full text-left p-3 rounded-lg text-sm flex items-center justify-between ${
+                    isSelected ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''
                   }`}
                 >
                   <span>{className}</span>

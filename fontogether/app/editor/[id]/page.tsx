@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
 import { Panel, Group } from "react-resizable-panels";
 import { SelectionArea, SelectionEvent } from "@viselect/react";
-import { ChevronLeft, Circle, Fullscreen, Hand, MousePointer2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenTool, RectangleHorizontal, RulerDimensionLine, Search, SplinePointer, Users, ZoomIn, ZoomOut, Settings } from "lucide-react";
+import { ChevronLeft, Circle, Fullscreen, Hand, MousePointer2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenTool, RectangleHorizontal, RulerDimensionLine, Search, SplinePointer, Users, ZoomIn, ZoomOut, Settings, Ligature } from "lucide-react";
 
 import Topbar from "@/components/topbar";
 import Spacer from "@/components/spacer";
@@ -208,16 +208,16 @@ export default function GlyphsView() {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
 
+      // 텍스트 필드에 포커스가 있을 때는 단축키 비활성화
+      const activeElement = document.activeElement;
+      const isTextInput = activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement;
+      const isTextInputFocused = isTextInput && document.activeElement === activeElement;
+
       // 방향키로 선택 이동 (텍스트 필드가 아닐 때만)
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !cmdOrCtrl && !e.shiftKey && activeTab === null && !isTextInputFocused) {
         e.preventDefault();
         // TODO: 선택된 글리프 이동 구현
       }
-
-      // 텍스트 필드에 포커스가 있을 때는 단축키 비활성화
-      const activeElement = document.activeElement;
-      const isTextInput = activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement;
-      const isTextInputFocused = isTextInput && document.activeElement === activeElement;
 
       // Return: 선택된 글리프 열기
       if (e.key === 'Enter' && activeTab === null && selectedIds.size > 0 && !isTextInputFocused) {
@@ -298,8 +298,9 @@ export default function GlyphsView() {
 
       // Z: 글꼴 크기 필드에 포커스
       if (e.key.toLowerCase() === 'z' && activeTab === null && !cmdOrCtrl && !e.shiftKey && !e.altKey) {
+        const activeElement = document.activeElement;
         const input = document.getElementById('glyph-size-input') as HTMLInputElement;
-        if (input) {
+        if (!(activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement) && input) {
           e.preventDefault();
           input.focus();
           input.select();
@@ -355,7 +356,7 @@ export default function GlyphsView() {
                     max="512"
                     value={glyphSize}
                     onChange={(e) => setGlyphSize(Number(e.target.value))}
-                    className="w-20 px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-sm"
+                    className="w-20 p-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-sm"
                     id="glyph-size-input"
                   />
                   <span className="text-xs text-gray-500 select-none">px</span>
@@ -370,7 +371,7 @@ export default function GlyphsView() {
                   filterValue={filterValue}
                   onFilterChange={(cat, val) => {
                     setFilterCategory(cat);
-                    setFilterValue(val);
+                    setFilterValue(val || '');
                   }}
                 />
               </div>
@@ -422,11 +423,11 @@ export default function GlyphsView() {
                     className="h-9 px-3 pr-8 bg-white dark:bg-black text-black dark:text-white hover:bg-gray-100 dark:hover:bg-zinc-900 active:bg-gray-200 dark:active:bg-zinc-800 rounded-full shadow-md dark:shadow-zinc-800 border-0 appearance-none cursor-pointer text-sm select-none"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}
                   >
-                    <option value="index">인덱스</option>
+                    <option value="index">글리프 인덱스</option>
+                    <option value="name">글리프 이름</option>
                     <option value="codepoint">코드 포인트</option>
-                    <option value="name">이름</option>
                     <option value="user-friendly">사용자 친화적</option>
-                    <option value="script-order">문자 체계 순서</option>
+                    <option value="script-order">문자 순서</option>
                   </select>
                 </div>
               </>
@@ -517,7 +518,7 @@ export default function GlyphsView() {
             <TopbarButton
               onClick={() => setShowFeatureModal(true)}
             >
-              <Settings size={18} strokeWidth={1.5} />
+              <Ligature size={18} strokeWidth={1.5} />
             </TopbarButton>
 
             {isRightCollapsed && (
@@ -538,7 +539,10 @@ export default function GlyphsView() {
                 return (
                   <div key={glyphId} onMouseDown={() => switchTab(glyphId)} className={`relative px-4 py-2 flex flex-row flex-1 rounded-full justify-center ${glyphId === activeTab ? "bg-white dark:bg-zinc-700 shadow" : "hover:bg-gray-200 dark:hover:bg-zinc-800"}`}>
                     {glyphId !== null && glyphId === activeTab && (
-                      <button onClick={() => closeTab(glyphId)} className="absolute left-3 w=1 h=1">×</button>
+                      <button
+                        onClick={() => closeTab(glyphId)}
+                        className="absolute left-2 w-3 h-3 hover:bg-gray-200 active:bg-gray-300 dark:hover:bg-zinc-600 dark:active:bg-zinc-500 rounded-full"
+                      >×</button>
                     )}
                     <p className="truncate">{tabName}</p>
                   </div>
@@ -575,9 +579,9 @@ export default function GlyphsView() {
                   onToolChange={setSelectedTool}
                 />
               </div>
-              <PreviewPanel fontData={fontData} />
             </div>
           )}
+          <PreviewPanel fontData={fontData} />
         </Panel>
 
         {/* Right Sidebar */}
@@ -591,22 +595,22 @@ export default function GlyphsView() {
             </Topbar>
             <div className="pt-12 h-full flex flex-col">
               {/* Segmented Control */}
-              <div className="p-1 flex gap-1 bg-gray-100 dark:bg-zinc-800 rounded-full m-2">
+              <div className="p-1 flex bg-gray-100 dark:bg-zinc-800 rounded-full mx-1">
                 <button
                   onClick={() => setRightPanel('font')}
-                  className={`flex-1 px-3 py-1 rounded-full text-xs ${rightPanel === 'font' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
+                  className={`flex-1 px-2 py-1 rounded-full text-xs ${rightPanel === 'font' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
                 >
                   폰트
                 </button>
                 <button
                   onClick={() => setRightPanel('glyph')}
-                  className={`flex-1 px-3 py-1 rounded-full text-xs ${rightPanel === 'glyph' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
+                  className={`flex-1 px-2 py-1 rounded-full text-xs ${rightPanel === 'glyph' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
                 >
                   글리프
                 </button>
                 <button
                   onClick={() => setRightPanel('collaborate')}
-                  className={`flex-1 px-3 py-1 rounded-full text-xs ${rightPanel === 'collaborate' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
+                  className={`flex-1 px-2 py-1 rounded-full text-xs ${rightPanel === 'collaborate' ? 'bg-white dark:bg-zinc-700 shadow' : ''}`}
                 >
                   협업
                 </button>
