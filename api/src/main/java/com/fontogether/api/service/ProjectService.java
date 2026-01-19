@@ -13,6 +13,8 @@ import java.util.List;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final com.fontogether.api.repository.GlyphRepository glyphRepository;
+    private final UfoImportService ufoImportService;
 
     @Transactional(readOnly = true)
     public List<Project> getProjectsByUserId(Long userId) {
@@ -45,6 +47,25 @@ public class ProjectService {
         }
 
         return projectRepository.save(project);
+    }
+
+    @Transactional
+    public Long createProjectFromUfo(Long ownerId, org.springframework.web.multipart.MultipartFile file) {
+        try {
+            UfoImportService.UfoData data = ufoImportService.parseUfoZip(file, ownerId);
+            
+            // Save Project
+            Long projectId = projectRepository.save(data.project());
+            
+            // Save Glyphs
+            for (com.fontogether.api.model.domain.Glyph glyph : data.glyphs()) {
+                glyph.setProjectId(projectId);
+                glyphRepository.save(glyph);
+            }
+            return projectId;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to import UFO: " + e.getMessage(), e);
+        }
     }
 
     @Transactional

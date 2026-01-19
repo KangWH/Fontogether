@@ -196,7 +196,15 @@
   *(templateName: "Empty" or "Basic")*
 - **Response**: `200 OK` (ProjectId: `Long`)
 
-### 2. 프로젝트 메타데이터 수정
+### 2. UFO 파일로 프로젝트 생성 (Import)
+- **URL**: `POST /api/projects/ufo`
+- **Content-Type**: `multipart/form-data`
+- **Parameters**:
+  - `file`: UFO 폴더를 압축한 ZIP 파일 (`.zip`)
+  - `userId`: 소유자 ID (`Long`)
+- **Response**: `200 OK` (ProjectId: `Long`)
+
+### 3. 프로젝트 메타데이터 수정
 - **URL**: `PUT /api/projects/{projectId}`
 - **Request Body**:
   ```json

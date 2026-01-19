@@ -33,6 +33,18 @@ public class ProjectController {
         }
     }
 
+    @org.springframework.web.bind.annotation.PostMapping(value = "/ufo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> importProject(
+            @org.springframework.web.bind.annotation.RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @org.springframework.web.bind.annotation.RequestParam("userId") Long userId) {
+        try {
+            Long projectId = projectService.createProjectFromUfo(userId, file);
+            return ResponseEntity.ok(projectId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Import Error: " + e.getMessage());
+        }
+    }
+
     @org.springframework.web.bind.annotation.PutMapping("/{projectId}")
     public ResponseEntity<?> updateProject(@org.springframework.web.bind.annotation.PathVariable("projectId") Long projectId, 
                                            @org.springframework.web.bind.annotation.RequestBody UpdateProjectRequest request) {
