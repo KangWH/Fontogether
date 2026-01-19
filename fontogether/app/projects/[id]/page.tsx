@@ -80,7 +80,7 @@ export default function GlyphsView() {
   }
 
   useEffect(() => {
-    fetch(`http://10.249.16.96:444/api/projects/user/${user?.id || 0}`)
+    fetch(`/api/projects/user/${user?.id || 0}`)
     .then(res => res.json())
     .then(data => {
       setProjects(data);
@@ -279,17 +279,20 @@ export default function GlyphsView() {
             </Panel>
           )}
 
+          {isNewProjectModalOpen && (
+            <NewProjectModal onClose={() => {setIsNewProjectModalOpen(false)}} />
+          )}
           {isAccountModalOpen && (
             <AccountModal onClose={() => {setIsAccountModalOpen(false)}} />
           )}
           {isDeleteProjectModalOpen && (
             <DeleteProjectModal ids={selectedIds} onClose={() => {setIsDeleteProjectModalOpen(false)}} />
           )}
+          {isExportProjectModalOpen && (
+            <ExportProjectModal onClose={() => {setIsExportProjectModalOpen(false)}}></ExportProjectModal>
+          )}
         </Group>
       </div>
-
-      <NewProjectModal isOpen={isNewProjectModalOpen} onClose={() => {setIsNewProjectModalOpen(false)}}></NewProjectModal>
-      <ExportProjectModal isOpen={isExportProjectModalOpen} onClose={() => {setIsExportProjectModalOpen(false)}}></ExportProjectModal>
     </>
   );
 }

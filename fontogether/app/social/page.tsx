@@ -19,17 +19,18 @@ export default function SocialLoginView() {
 
   const sendCodeToBackend = async (code: string) => {
     try {
-      const response = await fetch('http://10.249.16.96:444/api/users/social-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-        credentials: 'include',
+      const response = await fetch('/api/users/me', {
+        // method: 'POST',
+        // headers: { 'Content-Type': 'application/json' },
+        // body: JSON.stringify({ code }),
+        // credentials: 'include',
       });
       const result = await response.json();
 
       if (response.status === 200) {
         // 계정 존재: 로그인 처리
         // 현재 계정 상태를 쿠키에 저장
+        console.log('login success');
         router.push(`/projects/${0}`)
       } else if (response.status === 404) {
         // 계정 없음: 회원가입 페이지로 리다이렉트
