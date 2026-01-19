@@ -2,7 +2,7 @@
 
 import { AGL_DATA } from "@/data/AGL_DATA";
 import { GlyphData, FontData } from "@/types/font";
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface GlyphPropertiesPanelProps {
   glyphs: GlyphData[];
@@ -14,7 +14,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
   const isMultiple = glyphs.length > 1;
   const firstGlyph = glyphs[0];
 
-  const [unicodeField, setUnicodeField] = useState<string>(firstGlyph.unicode?.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') || '');
+  const [unicodeField, setUnicodeField] = useState<string>('');
   const unicodeFieldRef = useRef<HTMLInputElement>(null);
 
   const parseUnicodeCommaSeparatedList = (input: string): number[] | null => {
@@ -28,6 +28,11 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
     setUnicodeField(firstGlyph.unicode?.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') || '');
   };
   const [unicodeFieldInvalid, setUnicodeFieldInvalid] = useState(false);
+
+  useEffect(() => {
+    if (document.activeElement === unicodeFieldRef.current) return;
+    setUnicodeField(firstGlyph.unicode?.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') || '');
+  }, [glyphs.map(g => g.id)]);
 
   const updateGlyph = (field: string, value: any) => {
     onGlyphsChange(
@@ -103,11 +108,6 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
                 setUnicodeFieldInvalid(true);
               }
             }}
-            // value={firstGlyph.unicode?.join(', ') || ''}
-            // onChange={(e) => {
-            //   const codes = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-            //   updateGlyph('unicode', codes.length > 0 ? codes : undefined);
-            // }}
             placeholder="예: 32, A0"
             className={`w-full px-2 py-1 border rounded bg-white dark:bg-zinc-800 outline-none ${unicodeFieldInvalid ? 'border-red-500' : 'border-gray-300 dark:border-zinc-600 focus:border-blue-500'}`}
             onBlur={() => sanitizeUnicodeField()}
@@ -116,7 +116,6 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
         <div>
           <label className="block text-sm font-medium mb-1">OpenType Glyph class</label>
           <select
-            type="text"
             value={firstGlyph.openTypeClass || 'auto'}
             onChange={(e) => updateGlyph('openTypeClass', e.target.value || undefined)}
             className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
