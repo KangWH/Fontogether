@@ -8,12 +8,25 @@
 ## 2. 배포 사전 준비
 로컬에서 VM으로 파일을 전송해야 합니다. (Git Clone을 해도 되지만, `.env` 등 보안 파일은 직접 전송 필요)
 
-### 필수 파일
-1. `docker-compose.yml`
-2. `Dockerfile`
-3. `src/` (소스 코드)
-4. `build.gradle`, `settings.gradle`, `gradlew`, `gradle/`
-5. **`.env`** (중요: 서버용 환경변수로 수정 필요할 수 있음)
+### ✅ 필수 전송 파일 리스트 (이것만 옮기세요)
+| 경로/파일명 | 설명 | 비고 |
+| :--- | :--- | :--- |
+| `src/` | 소스 코드 폴더 전체 | |
+| `gradle/` | Gradle Wrapper 폴더 | |
+| `docker-compose.yml` | 도커 실행 설정 | |
+| `Dockerfile` | Spring Boot 이미지 빌드 설정 | |
+| `.env` | 환경 변수 파일 | **보안 주의** (직접 생성 권장) |
+| `build.gradle` | 라이브러리 의존성 설정 | |
+| `settings.gradle` | 프로젝트 설정 | |
+| `gradlew` | 실행 스크립트 (Linux용) | |
+| `gradlew.bat` | 실행 스크립트 (Windows용) | 선택 사항 |
+
+### ❌ 제외할 폴더 (보내지 마세요)
+- `db_data/` (DB 파일은 서버에서 새로 생성됨)
+- `build/` (빌드 결과물은 서버에서 다시 빌드함)
+- `.gradle/` (캐시는 서버에서 다시 받음)
+- `.git/` (버전 관리 폴더는 불필요하게 큼)
+- `.idea/`, `.vscode/` (IDE 설정 파일)
 
 ## 3. 배포 절차 (터미널)
 

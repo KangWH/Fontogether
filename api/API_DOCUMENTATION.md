@@ -1,8 +1,13 @@
 # Fontogether API Documentation
 
 ## 🌐 Base Config
-- **REST Base URL**: `http://localhost:444`
-- **WebSocket URL**: `ws://localhost:444/ws`
+**Development (Localhost)**:
+- REST URL: `http://localhost:80`
+- WebSocket URL: `ws://localhost:80/ws`
+
+**Production (K-Cloud VM)**:
+- REST URL: `http://172.10.5.122.nip.io`
+- WebSocket URL: `ws://172.10.5.122.nip.io/ws`
 - **Socket Client**: SockJS supported
 
 ---
@@ -56,23 +61,39 @@
   ]
   ```
 
-### 4. 구글 로그인 (OAuth 2.0)
-> 브라우저 리다이렉트를 통한 인증 방식입니다.
+### 4. 구글 로그인 (SPA Flow / Manual Exchange)
+> 프론트엔드에서 인증 코드를 받아 백엔드로 전달하는 방식입니다.
 
-#### 1) 로그인 시작 (Authorization Request)
-- **URL**: `/oauth2/authorization/google`
-- **Method**: `GET`
-- **Action**: 브라우저에서 이 주소로 이동하면 구글 로그인 페이지로 리다이렉트됩니다.
+#### 1) 흐름
+1. **Client**: 구글 로그인 창을 띄우고 사용자 동의를 받는다.
+2. **Client**: 구글에서 `Authorization Code`를 받는다.
+3. **Client**: 백엔드 API (`POST /api/auth/google`)로 코드를 보낸다.
+4. **Server**: 코드를 토큰으로 교환하고, 사용자 정보를 확인한다.
+5. **Server**: 세션(`JSESSIONID`)을 생성하고 응답한다.
 
-#### 2) 로그인 성공 (Redirect)
-- **Behavior**:
-  - 사용자가 구글에서 로그인을 완료하면 서버가 인증을 처리합니다.
-  - 성공 후 Root URL (`/`)로 리다이렉트됩니다.
-  - 인증 세션(`JSESSIONID`)이 생성되어 쿠키에 저장됩니다.
-
-#### 3) 오류 발생
-- **Log**: 서버 로그에 `OAuth2AuthenticationException`이 기록됩니다.
-- **Behavior**: 기본적으로 `/login?error` 페이지로 리다이렉트됩니다.
+#### 2) 로그인 API (Code 전달)
+- **URL**: `POST /api/auth/google`
+- **Request Body**:
+  ```json
+  {
+    "code": "4/0AeaYSH..." 
+  }
+  ```
+- **Response**: `200 OK`
+  ```json
+  {
+      "message": "Login successful",
+      "user": {
+          "id": 1,
+          "email": "user@gmail.com",
+          "nickname": "Google User",
+          "provider": "google"
+          ...
+      },
+      "sessionId": "..."
+  }
+  ```
+- **Cookie**: 응답 헤더에 `Set-Cookie: JSESSIONID=...`가 포함됩니다. 브라우저가 자동으로 저장합니다.
 
 ---
 

@@ -2,14 +2,15 @@ spring:
   application:
     name: fontogether-api
 
+  sql:
+    init:
+      mode: always # always: 서버 켤 때마다 schema.sql 실행
+
   datasource:
     url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
-
-    init:
-      mode: always # always: 서버 켤 때마다 schema.sql 실행 (데이터 초기화됨)
 
   security:
     oauth2:

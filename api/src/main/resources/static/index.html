@@ -42,14 +42,14 @@
         <h3>3. Google Login (OAuth2)</h3>
         <p>Clicking below will redirect you to Google's login page.</p>
         <p>After login, you should be redirected to the root.</p>
-        <a href="http://localhost:80/oauth2/authorization/google">
+        <a href="/oauth2/authorization/google">
             <button style="background: #db4437;">Sign in with Google</button>
         </a>
     </div>
 
     <script>
-        // Absolute path as requested
-        const API_BASE = 'http://localhost:80'; 
+        // Relative path for flexibility (works on localhost and VM)
+        const API_BASE = ''; 
 
         async function signup() {
             const resultDiv = document.getElementById('signup-result');

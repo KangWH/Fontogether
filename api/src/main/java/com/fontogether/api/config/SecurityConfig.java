@@ -31,8 +31,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configure(http)) // WebConfig의 CORS 설정 사용
             .authorizeHttpRequests(auth -> auth
                 // Public Endpoints
-                .requestMatchers("/", "/error", "/ws/**").permitAll()
-                .requestMatchers("/api/users/**").permitAll() // 로컬 로그인/가입
+                .requestMatchers("/", "/index.html", "/*.html", "/error", "/ws/**").permitAll()
+                .requestMatchers("/api/users/**", "/api/auth/**").permitAll() // 로컬 로그인 & 소셜 인증
                 .requestMatchers("/api/projects/**").permitAll() // 프로젝트 API
                 .requestMatchers("/test/**").permitAll()      // 테스트용
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
