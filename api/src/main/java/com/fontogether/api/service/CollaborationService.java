@@ -124,6 +124,26 @@ public class CollaborationService {
         messagingTemplate.convertAndSend(destination, payload);
     }
 
+    public void persistProjectDetail(com.fontogether.api.model.dto.ProjectDetailUpdateMessage message) {
+        // 1. Validate Update Type -> Column
+        String column = switch (message.getUpdateType()) {
+            case "META_INFO" -> "meta_info";
+            case "FONT_INFO" -> "font_info";
+            case "GROUPS" -> "groups";
+            case "KERNING" -> "kerning";
+            case "FEATURES" -> "features";
+            case "LAYER_CONFIG" -> "layer_config";
+            default -> throw new IllegalArgumentException("Unknown update type: " + message.getUpdateType());
+        };
+
+        // 2. Persist to DB
+        projectRepository.updateProjectDetail(message.getProjectId(), column, message.getData());
+
+        // 3. Broadcast to all clients (including sender, or exclude sender if optimized)
+        String destination = "/topic/project/" + message.getProjectId() + "/update/details";
+        messagingTemplate.convertAndSend(destination, message);
+    }
+
     public int getActiveUserCount(Long projectId) {
         // TODO: Implement real session tracking using SessionRegistry or equivalent.
         // For now, return 0 or rely on client-side counting via presence topic.

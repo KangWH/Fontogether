@@ -110,4 +110,14 @@ public class WebSocketController {
                 message.getNickname()
         );
     }
+
+    /**
+     * 프로젝트 상세 정보(메타데이터, 커닝 등) 업데이트
+     * /app/project/update/details 로 메시지 전송
+     */
+    @MessageMapping("/project/update/details")
+    public void handleProjectDetailUpdate(@Payload com.fontogether.api.model.dto.ProjectDetailUpdateMessage message) {
+        log.info("Project detail update: projectId={}, type={}", message.getProjectId(), message.getUpdateType());
+        collaborationService.persistProjectDetail(message);
+    }
 }

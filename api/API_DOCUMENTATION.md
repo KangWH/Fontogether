@@ -311,3 +311,18 @@
 - **Subscribe**: `/topic/project/{projectId}/kick`
 - **Payload**: `{ "kickedUserId": 1 }`
 - **Action**: 클라이언트는 이 메시지를 받으면 자신이 강퇴된 것인지 확인하고 메인 화면으로 이동해야 함.
+
+#### F. 프로젝트 상세 정보 업데이트 (MetaInfo, Kerning 등)
+- **Subscribe**: `/topic/project/{projectId}/update/details`
+- **Send To**: `/app/project/update/details`
+- **Payload**:
+  ```json
+  {
+      "projectId": 1,
+      "userId": 1,
+      "updateType": "KERNING", 
+      "data": "{\"pairs\": {...}}" 
+  }
+  ```
+- **UpdateType 종류**: `META_INFO`, `FONT_INFO`, `GROUPS`, `KERNING`, `FEATURES`, `LAYER_CONFIG`
+- **Data**: 각 항목에 맞는 JSON 문자열 (Features는 일반 문자열)

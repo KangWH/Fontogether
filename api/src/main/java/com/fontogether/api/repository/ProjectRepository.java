@@ -97,6 +97,21 @@ public class ProjectRepository {
         String sql = "DELETE FROM font_project WHERE project_id = ?";
         jdbcTemplate.update(sql, projectId);
     }
+
+    public void updateProjectDetail(Long projectId, String column, String data) {
+        // Validate column name to prevent SQL injection (Allowed list)
+        if (!java.util.Set.of("meta_info", "font_info", "groups", "kerning", "features", "layer_config").contains(column)) {
+            throw new IllegalArgumentException("Invalid column name: " + column);
+        }
+
+        String sql = "UPDATE font_project SET " + column + " = ?::jsonb, updated_at = NOW() WHERE project_id = ?";
+        // features is TEXT, others are JSONB. Handle exception for features.
+        if ("features".equals(column)) {
+            sql = "UPDATE font_project SET features = ?, updated_at = NOW() WHERE project_id = ?";
+        }
+        
+        jdbcTemplate.update(sql, data, projectId);
+    }
     // --- Collaboration Methods ---
 
     public List<Collaborator> findCollaborators(Long projectId) {
