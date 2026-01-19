@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FontData, FeatureFile } from "@/types/font";
+import { FontData, FeatureFile, FeatureRule } from "@/types/font";
 import { X } from "lucide-react";
 
 interface OpenTypeFeaturePanelProps {

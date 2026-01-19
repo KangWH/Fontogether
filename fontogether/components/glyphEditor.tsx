@@ -51,7 +51,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
       selectedSegmentsRef.current = [];
       clearHighlights();
       // useLayoutEffect 내부에서 paper.view.draw()를 호출했으므로 여기서는 생략 가능
-      if (paper.view) paper.view.draw();
+      // if (paper.view) paper.view.draw();
     }
   }, [clearHighlights]);
 
@@ -91,7 +91,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         const isMajor = x % gridSize === 0;
         line.strokeColor = new paper.Color(isMajor ? '#e5e7eb' : '#f3f4f6');
         line.strokeWidth = isMajor ? 1 : 0.5;
-        line.guide = true; // 💡 선택 및 충돌 감지 제외
+        line.data.isGuide = true;
       }
 
       // 가로선 그리기
@@ -103,7 +103,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         const isMajor = y % gridSize === 0;
         line.strokeColor = new paper.Color(isMajor ? '#e5e7eb' : '#f3f4f6');
         line.strokeWidth = isMajor ? 1 : 0.5;
-        line.guide = true;
+        line.data.isGuide = true;
       }
 
       // 💡 다시 메인 레이어로 활성 레이어 복구
@@ -134,14 +134,14 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     const resizeObserver = new ResizeObserver(() => {
       updateCanvasSize();
       drawGrid();
-      paper.view.draw(); 
+      // paper.view.draw(); 
     });
     resizeObserver.observe(canvasRef.current);
 
     // Screen panning
     const handlePanning = (delta: paper.Point) => {
       paper.view.center = paper.view.center.subtract(delta);
-      paper.view.draw();
+      // paper.view.draw();
     };
     const panOnDrag = (event: paper.ToolEvent) => {
       // space가 눌려있거나 휠 버튼이 눌려있는 경우
@@ -169,7 +169,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     baseline.strokeColor = new paper.Color("#e5e7eb");
     baseline.strokeWidth = 1;
-    baseline.guide = true;
+    // baseline.guide = true;
     baseline.locked = true;
     const baselineLabel = new paper.PointText({
       point: new paper.Point(-32760, 0),
@@ -187,7 +187,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     xHeight.strokeColor = new paper.Color("#d1d5db");
     xHeight.strokeWidth = 1;
-    xHeight.guide = true;
+    // xHeight.guide = true;
     xHeight.locked = true;
     const xHeightLabel = new paper.PointText({
       point: new paper.Point(-32760, metrics.xHeight),
@@ -205,7 +205,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     capHeight.strokeColor = new paper.Color("#d1d5db");
     capHeight.strokeWidth = 1;
-    capHeight.guide = true;
+    // capHeight.guide = true;
     capHeight.locked = true;
     const capHeightLabel = new paper.PointText({
       point: new paper.Point(-32760, metrics.capHeight),
@@ -223,7 +223,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     ascender.strokeColor = new paper.Color("#9ca3af");
     ascender.strokeWidth = 1;
-    ascender.guide = true;
+    // ascender.guide = true;
     ascender.locked = true;
     const ascenderLabel = new paper.PointText({
       point: new paper.Point(-32760, metrics.ascender),
@@ -241,7 +241,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     descender.strokeColor = new paper.Color("#9ca3af");
     descender.strokeWidth = 1;
-    descender.guide = true;
+    // descender.guide = true;
     descender.locked = true;
     const descenderLabel = new paper.PointText({
       point: new paper.Point(-32760, metrics.descender),
@@ -259,7 +259,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     originLine.strokeColor = new paper.Color("#e5e7eb");
     originLine.strokeWidth = 1;
-    originLine.guide = true;
+    // originLine.guide = true;
     originLine.locked = true;
 
     // Advance width line
@@ -274,7 +274,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
       );
       advanceWidthLine.strokeColor = new paper.Color("#3b82f6");
       advanceWidthLine.strokeWidth = 2;
-      advanceWidthLine.guide = true;
+      // advanceWidthLine.guide = true;
       advanceWidthLine.locked = false;
     };
     updateAdvanceWidthLine();
@@ -394,11 +394,11 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         // 모든 글리프 윤곽선과 advance width 선을 함께 이동
         const deltaX = event.delta.x;
         paper.project.activeLayer.children.forEach((item: any) => {
-          if (item instanceof paper.Path && !item.guide && item !== advanceWidthLine) {
+          if (item instanceof paper.Path && item.data.isGuide && /* !item.guide && */ item !== advanceWidthLine) {
             item.translate(new paper.Point(deltaX, 0));
           }
         });
-        paper.view.draw();
+        // paper.view.draw();
         return;
       }
 
@@ -415,13 +415,13 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         });
       }
       refreshHighlights();
-      paper.view.draw();
+      // paper.view.draw();
     };
 
     pointerToolRef.current.onMouseUp = (event: paper.ToolEvent) => {
       if (advanceWidthDragging) {
         advanceWidthDragging = false;
-        paper.view.draw();
+        // paper.view.draw();
         return;
       }
 
@@ -430,7 +430,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
 
         // 점의 좌표가 사각형 영역 안에 포함되는지 확인
         paper.project.activeLayer.children.forEach((item: any) => {
-        if (item instanceof paper.Path && !item.guide) {
+        if (item instanceof paper.Path && !item.data.isGuide /* && !item.guide */) {
           item.segments.forEach((seg: paper.Segment) => {
             if (bounds.contains(seg.point)) {
               if (!selectedSegmentsRef.current.includes(seg)) {
@@ -445,7 +445,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         selectionRect = null;
         refreshHighlights();
       }
-      paper.view.draw();
+      // paper.view.draw();
     }
 
     // Pen tool: draw new shapes
@@ -467,7 +467,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         // 추가된 점 선택 및 강조
         selectedSegmentsRef.current = [newSegment];
         refreshHighlights();
-        paper.view.draw();
+        // paper.view.draw();
         return; // 1번 기능 수행 후 종료 (초기 상태 유지)
       }
 
@@ -496,7 +496,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         selectedSegmentsRef.current = [lastSegment!];
         refreshHighlights();
       }
-      paper.view.draw();
+      // paper.view.draw();
     };
 
     penToolRef.current.onMouseDrag = (event: paper.ToolEvent) => {
@@ -510,7 +510,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         lastSegment.handleOut = delta.multiply(-1);
         
         refreshHighlights();
-        paper.view.draw();
+        // paper.view.draw();
       }
     };
 
@@ -570,7 +570,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         }
         
         refreshHighlights();
-        paper.view.draw();
+        // paper.view.draw();
       }
     };
 
@@ -589,7 +589,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         }
         
         refreshHighlights();
-        paper.view.draw();
+        // paper.view.draw();
       }
       hitSegment = null;
     };
@@ -603,9 +603,9 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     handToolRef.current.onMouseUp = () => {
       canvasRef.current!.style.cursor = 'grab';
     };
-    handToolRef.current.onActivate = () => {
+    handToolRef.current.on('activate', () => {
       canvasRef.current!.style.cursor = 'grab';
-    };
+    });
 
     // Rectangle tool
     rectangleToolRef.current = new paper.Tool();
@@ -681,7 +681,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         strokeColor: 'black',
         strokeWidth: 2,
       });
-      paper.view.draw();
+      // paper.view.draw();
     };
 
     rectangleToolRef.current.onMouseUp = () => {
@@ -739,7 +739,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         strokeColor: 'black',
         strokeWidth: 2,
       });
-      paper.view.draw();
+      // paper.view.draw();
     };
 
     circleToolRef.current.onMouseUp = () => {
@@ -762,7 +762,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         // 줌 아웃
         const view = paper.view;
         view.zoom = Math.max(0.05, view.zoom / 1.2);
-        view.draw();
+        // view.draw();
       }
     };
 
@@ -779,7 +779,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         strokeWidth: 1,
         guide: true,
       });
-      paper.view.draw();
+      // paper.view.draw();
     };
 
     zoomToolRef.current.onMouseUp = (event: paper.ToolEvent) => {
@@ -807,7 +807,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         }
         zoomRect.remove();
         zoomRect = null;
-        paper.view.draw();
+        // paper.view.draw();
       }
       zoomStartPoint = null;
     };
@@ -864,7 +864,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         guide: true,
       });
 
-      paper.view.draw();
+      // paper.view.draw();
     };
 
     rulerToolRef.current.onMouseUp = () => {
@@ -872,7 +872,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     };
 
     // Delete points and keyboard shortcuts
-    paper.view.onKeyDown = (event: any) => {
+    paper.view.on('keydown', (event: any) => {
       const key = event.key.toLowerCase();
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? event.modifiers.meta : event.modifiers.control;
@@ -892,7 +892,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
 
           selectedSegmentsRef.current = [];
           clearHighlights();
-          paper.view.draw();
+          // paper.view.draw();
         }
       } else if (event.key === 'space') {
         // panning
@@ -903,19 +903,19 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         event.preventDefault();
         const view = paper.view;
         view.zoom = Math.max(0.05, view.zoom - 0.1);
-        view.draw();
+        // view.draw();
       } else if ((key === '=' || key === '+') && !cmdOrCtrl) {
         // 줌 증가
         event.preventDefault();
         const view = paper.view;
         view.zoom = Math.min(50, view.zoom + 0.1);
-        view.draw();
+        // view.draw();
       } else if (key === '1') {
         // 100% 줌
         event.preventDefault();
         const view = paper.view;
         view.zoom = 1.0;
-        view.draw();
+        // view.draw();
       } else if (key === 'f') {
         // 화면에 맞추기
         event.preventDefault();
@@ -969,7 +969,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
           seg.handleOut = temp.multiply(-1);
         });
         refreshHighlights();
-        paper.view.draw();
+        // paper.view.draw();
       } else if (event.key === 'Enter' && selectedSegmentsRef.current.length > 0) {
         // 점 이동 모달
         event.preventDefault();
@@ -987,7 +987,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
             seg.point = seg.point.add(delta);
           });
           refreshHighlights();
-          paper.view.draw();
+          // paper.view.draw();
         }
       }
 
@@ -1017,7 +1017,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
                         child.fillColor = null;
                       });
                     }
-                    paper.view.draw();
+                    // paper.view.draw();
                   }
                 });
               }
@@ -1029,14 +1029,14 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
           });
         }
       }
-    };
+    });
 
-    paper.view.onKeyUp = (event: any) => {
+    paper.view.on('keyup', (event: any) => {
       if (event.key === 'space') {
         isSpacePressed = false;
         canvasRef.current!.style.cursor = 'default';
       }
-    };
+    });
 
     canvasRef.current!.addEventListener('mousedown', (e: MouseEvent) => {
       if (e.button === 1) {
@@ -1070,7 +1070,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
       const offset = mousePosition.subtract(diff.multiply(oldZoom / newZoom)).subtract(view.center);
       view.center = view.center.add(offset);
 
-      view.draw();
+      // view.draw();
     }
     canvasRef.current.addEventListener('wheel', handleWheel, { passive: false });
 
@@ -1093,16 +1093,16 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     switch (zoomAction?.type) {
       case 'IN':
         view.zoom = view.zoom + 0.1;
-        view.draw();
+        // view.draw();
         break;
       case 'OUT': 
         view.zoom = view.zoom - 0.1;
-        view.draw();
+        // view.draw();
         break;
       case 'RESET':
         view.zoom = 1.0;
         view.center = new paper.Point(500, 500);
-        view.draw();
+        // view.draw();
         break;
     }
 

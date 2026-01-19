@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
 
-export default function SocialLoginView() {
+function SocialLoginView() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -54,4 +54,12 @@ export default function SocialLoginView() {
       <a href="/" className="text-blue-500 hover:underline">첫 페이지로 돌아가기</a>
     </div>
   );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SocialLoginView />
+    </Suspense>
+  )
 }
