@@ -78,7 +78,7 @@ export default function FilterSidebar({ fontData, filterCategory, filterValue, o
           >
             <span className="flex items-center gap-2">
               
-              <span className="capitalize">모두 보기</span>
+              <span className="capitalize">전체 글리프</span>
             </span>
             <span className="text-xs text-gray-500">{fontData.glyphs.length}</span>
           </button>

@@ -166,6 +166,7 @@ export default function PreviewPanel({ fontData, onHeightChange, initialHeight =
                   type="number"
                   value={tracking}
                   onChange={(e) => setTracking(Number(e.target.value))}
+                  step="0.05"
                   className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
                 />
               </div>
@@ -184,18 +185,16 @@ export default function PreviewPanel({ fontData, onHeightChange, initialHeight =
               <ChevronDown size={16} />
             </button>
           </div>
-          <div className="flex-1 p-4 overflow-y-auto">
-            <textarea
+          <div className="flex-1 flex flex-col p-4 overflow-y-auto">
+            <input
               value={previewText}
               onChange={(e) => setPreviewText(e.target.value)}
-              placeholder="텍스트를 입력하세요..."
-              className="w-full h-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
-              style={{
-                fontFamily: fontData.metadata.familyName,
-                fontSize: '48px',
-                lineHeight: '1.5',
-              }}
+              className="outline-none bg-white dark:bg-black p-1 rounded border border-gray-300 dark:border-zinc-700 focus:border-blue-500"
             />
+            <div
+              className={`flex-1`}
+              style={{ fontSize: `${fontSize}px`, lineHeight: lineHeight, letterSpacing: `${tracking}pt` }}
+            >{previewText}</div>
           </div>
         </div>
       </div>

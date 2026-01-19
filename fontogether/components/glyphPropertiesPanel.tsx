@@ -1,7 +1,8 @@
 "use client";
 
+import { AGL_DATA } from "@/data/AGL_DATA";
 import { GlyphData, FontData } from "@/types/font";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 interface GlyphPropertiesPanelProps {
   glyphs: GlyphData[];
@@ -12,6 +13,21 @@ interface GlyphPropertiesPanelProps {
 export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange }: GlyphPropertiesPanelProps) {
   const isMultiple = glyphs.length > 1;
   const firstGlyph = glyphs[0];
+
+  const [unicodeField, setUnicodeField] = useState<string>(firstGlyph.unicode?.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') || '');
+  const unicodeFieldRef = useRef<HTMLInputElement>(null);
+
+  const parseUnicodeCommaSeparatedList = (input: string): number[] | null => {
+    const codes = input.split(',').map(s => s.trim()).filter(s => Boolean(s)).map(s => parseInt(s, 16));
+    if (codes.some(n => isNaN(n))) {
+      return null;
+    }
+    return codes;
+  };
+  const sanitizeUnicodeField = () => {
+    setUnicodeField(firstGlyph.unicode?.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') || '');
+  };
+  const [unicodeFieldInvalid, setUnicodeFieldInvalid] = useState(false);
 
   const updateGlyph = (field: string, value: any) => {
     onGlyphsChange(
@@ -40,10 +56,10 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4">
-      {/* 기본 메타데이터 */}
+    <div className="h-full overflow-y-auto p-4 space-y-4 text-sm">
+      {/* 메타데이터 */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold">기본 메타데이터</h3>
+        <h3 className="text-sm font-bold">메타데이터 — 글리프 {firstGlyph.id}</h3>
         <div>
           <label className="block text-sm font-medium mb-1">글리프 이름</label>
           <input
@@ -53,39 +69,64 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
             disabled={isMultiple}
             className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 disabled:opacity-50"
           />
+          <button
+            onClick={() => {
+              if (firstGlyph.unicode?.[0]) {
+                const aglName = AGL_DATA[firstGlyph.unicode[0]];
+                if (aglName) {
+                  updateGlyph('name', aglName);
+                } else {
+                  const hexString = firstGlyph.unicode[0].toString(16).toUpperCase().padStart(4, '0');
+                  updateGlyph('name', `uni${hexString}`)
+                }
+              }
+            }}
+            className="mt-1 text-xs text-blue-500 hover:underline"
+          >
+            유니코드로부터 이름 지정
+          </button>
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">유니코드 포인트</label>
           <input
             type="text"
-            value={firstGlyph.unicode?.join(', ') || ''}
+            value={unicodeField}
+            ref={unicodeFieldRef}
             onChange={(e) => {
-              const codes = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-              updateGlyph('unicode', codes.length > 0 ? codes : undefined);
-            }}
-            placeholder="예: 65, 66"
-            className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
-          />
-          <button
-            onClick={() => {
-              if (firstGlyph.unicode?.[0]) {
-                const char = String.fromCharCode(firstGlyph.unicode[0]);
-                updateGlyph('name', char);
+              setUnicodeField(e.target.value);
+              let parseResult = parseUnicodeCommaSeparatedList(e.target.value);
+              if (parseResult !== null) {
+                updateGlyph('unicode', parseResult.length > 0 ? parseResult : undefined);
+                setUnicodeFieldInvalid(false);
+              } else {
+                updateGlyph('unicode', []);
+                setUnicodeFieldInvalid(true);
               }
             }}
-            className="mt-1 text-xs text-blue-500 hover:underline"
-          >
-            유니코드로부터 이름 자동 지정
-          </button>
+            // value={firstGlyph.unicode?.join(', ') || ''}
+            // onChange={(e) => {
+            //   const codes = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+            //   updateGlyph('unicode', codes.length > 0 ? codes : undefined);
+            // }}
+            placeholder="예: 32, A0"
+            className={`w-full px-2 py-1 border rounded bg-white dark:bg-zinc-800 outline-none ${unicodeFieldInvalid ? 'border-red-500' : 'border-gray-300 dark:border-zinc-600 focus:border-blue-500'}`}
+            onBlur={() => sanitizeUnicodeField()}
+          />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">OpenType Glyph class</label>
-          <input
+          <select
             type="text"
-            value={firstGlyph.openTypeClass || ''}
+            value={firstGlyph.openTypeClass || 'auto'}
             onChange={(e) => updateGlyph('openTypeClass', e.target.value || undefined)}
             className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
-          />
+          >
+            <option value="auto">자동</option>
+            <option value="base">Base</option>
+            <option value="ligature">Ligature</option>
+            <option value="mark">Mark</option>
+            <option value="component">Component</option>
+          </select>
         </div>
       </div>
 

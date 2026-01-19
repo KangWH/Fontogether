@@ -122,7 +122,7 @@ export default function GlyphsView() {
                 {filters.map((item) => (
                   <div
                     key={item.name}
-                    className={`p-3 rounded-lg select-none ${currentFilter === item.name ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''}`}
+                    className={`p-3 rounded-lg select-none ${currentFilter === item.name ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''} text-sm`}
                     onClick={() => setCurrentFilter(item.name)}
                   >{item.text}</div>
                 ))}
@@ -152,14 +152,14 @@ export default function GlyphsView() {
               </TopbarButtonGroup>
 
               {/* Sorting */}
-              <TopbarDropdownButton onClick={() => {sortSelectRef.current?.click()}}>
+              <TopbarDropdownButton onClick={() => {sortSelectRef.current?.showPicker()}}>
                 <ArrowDownWideNarrow size={18} strokeWidth={1.5} />
+                <select ref={sortSelectRef} className="text-sm outline-none appearance-none">
+                  <option value="recentlyEdited">최근 수정일</option>
+                  <option value="createdAt">생성일</option>
+                  <option value="alphabetical">프로젝트 이름</option>
+                </select>
               </TopbarDropdownButton>
-              <select ref={sortSelectRef} className="w-0 h-0">
-                <option value="recentlyEdited">최근 수정일</option>
-                <option value="createdAt">생성일</option>
-                <option value="alphabetical">프로젝트 이름</option>
-              </select>
 
               {/* File actions */}
               <TopbarButtonGroup>
@@ -223,7 +223,7 @@ export default function GlyphsView() {
                       : "flex flex-col"}
                   `}>
                     {viewType === "list" && (
-                      <div className="flex justify-between items-center p-2 pb-1 border-b border-gray-300 dark:border-zinc-700 select-none font-semibold text-sm text-gray-400 dark:text-zinc-600">
+                      <div className="sticky top-0 flex justify-between items-center p-2 pb-1 mb-1 border-b border-gray-300 dark:border-zinc-700 select-none font-semibold text-sm text-gray-400 dark:text-zinc-600">
                         <span className="basis-64 grow-[3]">프로젝트 이름</span>
                         <span className="basis-20 grow">소유자</span>
                         <span className="basis-20 grow">마지막 수정일</span>

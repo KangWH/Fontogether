@@ -21,7 +21,7 @@ export default function TopbarButton({ disabled = false, selected = false, onCli
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`h-9 p-2 bg-white text-black dark:bg-black dark:text-white rounded-full shadow-md dark:shadow-zinc-800 leading-none disabled:opacity-25 ${selected ? "bg-gray-200 dark:bg-zinc-700" : disabled ? "" : "hover:bg-gray-100 dark:hover:bg-zinc-900 active:bg-gray-200 dark:active:bg-zinc-800"}`}
+      className={`h-9 p-2 bg-white text-black dark:bg-black dark:text-white rounded-full shadow-md dark:shadow-zinc-800 leading-none disabled:opacity-25 ${selected ? "bg-gray-200 dark:bg-zinc-700" : disabled ? "" : "hover:bg-gray-100 dark:hover:bg-zinc-900 active:bg-gray-200 dark:active:bg-zinc-800 outline-none"}`}
     >
       {children}
     </button>
@@ -34,7 +34,7 @@ export function TopbarDropdownButton({ disabled = false, onClick = () => {}, tit
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`h-9 p-2 pr-1 flex flex-row items-center relative bg-white text-black dark:bg-black dark:text-white rounded-full shadow-md dark:shadow-zinc-800 leading-none disabled:opacity-25 hover:bg-gray-100 dark:hover:bg-zinc-900 active:bg-gray-200 dark:active:bg-zinc-800`}
+      className={`h-9 p-2 pr-1 flex flex-row gap-1 items-center relative bg-white text-black dark:bg-black dark:text-white rounded-full shadow-md dark:shadow-zinc-800 leading-none disabled:opacity-25 hover:bg-gray-100 dark:hover:bg-zinc-900 active:bg-gray-200 dark:active:bg-zinc-800`}
     >
       {children}
       <ChevronDown size={12} />
@@ -56,7 +56,7 @@ export function TopbarGroupedButton({ disabled = false, selected = false, onClic
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`h-7 p-1 rounded-full leading-none disabled:opacity-25 ${selected ? "bg-gray-200 dark:bg-zinc-700" : disabled ? "" : "hover:bg-gray-100 dark:hover:bg-zinc-900 active:bg-gray-200 dark:active:bg-zinc-800"}`}
+      className={`h-7 p-1 rounded-full leading-none disabled:opacity-25 ${selected ? "bg-gray-200 dark:bg-zinc-700" : disabled ? "" : "hover:bg-gray-100 dark:hover:bg-zinc-900 active:bg-gray-200 dark:active:bg-zinc-800 outline-none"}`}
     >
       {children}
     </button>

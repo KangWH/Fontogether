@@ -1,15 +1,14 @@
 "use client";
 
-import { act, useState, useEffect, useCallback, useMemo } from "react";
+import { act, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
 import { Panel, Group } from "react-resizable-panels";
-import { SelectionArea, SelectionEvent } from "@viselect/react";
-import { ChevronLeft, Circle, Fullscreen, Hand, MousePointer2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenTool, RectangleHorizontal, RulerDimensionLine, Search, SplinePointer, Users, ZoomIn, ZoomOut, Settings, Ligature } from "lucide-react";
+import { ChevronLeft, Circle, Fullscreen, Hand, MousePointer2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenTool, RectangleHorizontal, RulerDimensionLine, Search, SplinePointer, Users, ZoomIn, ZoomOut, Settings, Ligature, SquarePlus, ArrowDownWideNarrow, Minus } from "lucide-react";
 
 import Topbar from "@/components/topbar";
 import Spacer from "@/components/spacer";
-import TopbarButton, { TopbarButtonGroup, TopbarGroupedButton } from "@/components/topbarButton";
+import TopbarButton, { TopbarButtonGroup, TopbarDropdownButton, TopbarGroupedButton } from "@/components/topbarButton";
 import GlyphPreview from "@/components/glyphPreview";
 import GlyphGrid from "@/components/glyphGrid";
 import GlyphViewControls from "@/components/glyphViewControls";
@@ -46,10 +45,11 @@ export default function GlyphsView() {
   const [selectedTool, setSelectedTool] = useState("pointer");
 
   // --- Glyph View State ---
-  const [glyphSize, setGlyphSize] = useState(120);
+  const [glyphSize, setGlyphSize] = useState(72);
   const [sortOption, setSortOption] = useState<SortOption>('index');
   const [filterCategory, setFilterCategory] = useState<FilterCategory>('none');
   const [filterValue, setFilterValue] = useState<string>('');
+  const sortOptionRef = useRef<HTMLSelectElement>(null);
 
   // --- Right Sidebar Panel State ---
   const [rightPanel, setRightPanel] = useState<'font' | 'glyph' | 'collaborate'>('font');
@@ -312,7 +312,7 @@ export default function GlyphsView() {
         const activeElement = document.activeElement;
         if (!(activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement)) {
           e.preventDefault();
-          setGlyphSize(prev => Math.max(4, prev - 10));
+          setGlyphSize(prev => Math.max(4, prev - 1));
         }
       }
 
@@ -321,7 +321,7 @@ export default function GlyphsView() {
         const activeElement = document.activeElement;
         if (!(activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement)) {
           e.preventDefault();
-          setGlyphSize(prev => Math.min(512, prev + 10));
+          setGlyphSize(prev => Math.min(512, prev + 1));
         }
       }
     };
@@ -345,25 +345,8 @@ export default function GlyphsView() {
                 <PanelLeftClose size={18} strokeWidth={1.5} />
               </TopbarButton>
             </Topbar>
-            <div className="pt-12 h-full flex flex-col">
-              {/* 글리프 크기 조절 */}
-              <div className="p-4 border-b border-gray-200 dark:border-zinc-700">
-                <label className="block text-sm font-medium mb-2 select-none">글리프 크기</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="4"
-                    max="512"
-                    value={glyphSize}
-                    onChange={(e) => setGlyphSize(Number(e.target.value))}
-                    className="w-20 p-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-sm"
-                    id="glyph-size-input"
-                  />
-                  <span className="text-xs text-gray-500 select-none">px</span>
-                </div>
-              </div>
-              
-              {/* 필터 사이드바 */}
+            <div className="absolute mt-12 w-full h-full flex flex-col">
+              {/* 필터 */}
               <div className="flex-1 overflow-y-auto">
                 <FilterSidebar
                   fontData={fontData}
@@ -404,7 +387,7 @@ export default function GlyphsView() {
                     onClick={handleAddGlyph}
                     title="글리프 추가 (Cmd+E)"
                   >
-                    <Plus size={18} strokeWidth={1.5} />
+                    <SquarePlus size={18} strokeWidth={1.5} />
                   </TopbarGroupedButton>
                   <TopbarGroupedButton
                     onClick={handleDeleteGlyph}
@@ -416,12 +399,13 @@ export default function GlyphsView() {
                 </TopbarButtonGroup>
 
                 {/* Sort dropdown */}
-                <div className="relative">
+                <TopbarDropdownButton onClick={() => {sortOptionRef.current?.showPicker()}}>
+                  <ArrowDownWideNarrow size={18} strokeWidth={1.5} />
                   <select
+                    ref={sortOptionRef}
                     value={sortOption}
                     onChange={(e) => setSortOption(e.target.value as SortOption)}
-                    className="h-9 px-3 pr-8 bg-white dark:bg-black text-black dark:text-white hover:bg-gray-100 dark:hover:bg-zinc-900 active:bg-gray-200 dark:active:bg-zinc-800 rounded-full shadow-md dark:shadow-zinc-800 border-0 appearance-none cursor-pointer text-sm select-none"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}
+                    className="text-sm outline-none appearance-none"
                   >
                     <option value="index">글리프 인덱스</option>
                     <option value="name">글리프 이름</option>
@@ -429,91 +413,112 @@ export default function GlyphsView() {
                     <option value="user-friendly">사용자 친화적</option>
                     <option value="script-order">문자 순서</option>
                   </select>
-                </div>
+                </TopbarDropdownButton>
+
+                <TopbarButtonGroup>
+                  <TopbarGroupedButton onClick={() => setGlyphSize(prev => Math.max(4, prev - 1))}>
+                    <Minus size={18} strokeWidth={1.5}></Minus>
+                  </TopbarGroupedButton>
+                  <input
+                    type="number"
+                    min="4"
+                    max="512"
+                    value={glyphSize}
+                    onChange={(e) => setGlyphSize(Number(e.target.value))}
+                    className="border border-transparent text-center bg-transparent text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none outline-none rounded"
+                    id="glyph-size-input"
+                  />
+                  <TopbarGroupedButton onClick={() => setGlyphSize(prev => Math.max(4, prev + 1))}>
+                    <Plus size={18} strokeWidth={1.5}></Plus>
+                  </TopbarGroupedButton>
+                </TopbarButtonGroup>
               </>
             )}
 
-            {/* Zoom control */}
-            <TopbarButtonGroup>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                onClick={() => setZoomAction({ type: 'OUT', timestamp: Date.now() })}
-              >
-                <ZoomOut size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                onClick={() => setZoomAction({ type: 'RESET', timestamp: Date.now() })}
-              >
-                <Fullscreen size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                onClick={() => setZoomAction({ type: 'IN', timestamp: Date.now() })}
-              >
-                <ZoomIn size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-            </TopbarButtonGroup>
+            {/* Glyph editor tools (only in glyph editor) */}
+            {activeTab !== null && (<>
+              {/* Zoom control */}
+              <TopbarButtonGroup>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  onClick={() => setZoomAction({ type: 'OUT', timestamp: Date.now() })}
+                >
+                  <ZoomOut size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  onClick={() => setZoomAction({ type: 'RESET', timestamp: Date.now() })}
+                >
+                  <Fullscreen size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  onClick={() => setZoomAction({ type: 'IN', timestamp: Date.now() })}
+                >
+                  <ZoomIn size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+              </TopbarButtonGroup>
 
-            {/* Editor toolbar */}
-            <TopbarButtonGroup>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                selected={activeTab !== null && selectedTool === "pen"}
-                onClick={() => setSelectedTool("pen")}
-              >
-                <PenTool size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                selected={activeTab !== null && selectedTool === "pointer"}
-                onClick={() => setSelectedTool("pointer")}
-              >
-                <MousePointer2 size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                selected={activeTab !== null && selectedTool === "curve"}
-                onClick={() => setSelectedTool("curve")}
-              >
-                <SplinePointer size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                selected={activeTab !== null && selectedTool === "rectangle"}
-                onClick={() => setSelectedTool("rectangle")}
-              >
-                <RectangleHorizontal size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                selected={activeTab !== null && selectedTool === "circle"}
-                onClick={() => setSelectedTool("circle")}
-              >
-                <Circle size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                selected={activeTab !== null && selectedTool === "hand"}
-                onClick={() => setSelectedTool("hand")}
-              >
-                <Hand size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                selected={activeTab !== null && selectedTool === "zoom"}
-                onClick={() => setSelectedTool("zoom")}
-              >
-                <Search size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-              <TopbarGroupedButton
-                disabled={activeTab === null}
-                selected={activeTab !== null && selectedTool === "ruler"}
-                onClick={() => setSelectedTool("ruler")}
-              >
-                <RulerDimensionLine size={18} strokeWidth={1.5} />
-              </TopbarGroupedButton>
-            </TopbarButtonGroup>
+              {/* Editor toolbar */}
+              <TopbarButtonGroup>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  selected={activeTab !== null && selectedTool === "pen"}
+                  onClick={() => setSelectedTool("pen")}
+                >
+                  <PenTool size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  selected={activeTab !== null && selectedTool === "pointer"}
+                  onClick={() => setSelectedTool("pointer")}
+                >
+                  <MousePointer2 size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  selected={activeTab !== null && selectedTool === "curve"}
+                  onClick={() => setSelectedTool("curve")}
+                >
+                  <SplinePointer size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  selected={activeTab !== null && selectedTool === "rectangle"}
+                  onClick={() => setSelectedTool("rectangle")}
+                >
+                  <RectangleHorizontal size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  selected={activeTab !== null && selectedTool === "circle"}
+                  onClick={() => setSelectedTool("circle")}
+                >
+                  <Circle size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  selected={activeTab !== null && selectedTool === "hand"}
+                  onClick={() => setSelectedTool("hand")}
+                >
+                  <Hand size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  selected={activeTab !== null && selectedTool === "zoom"}
+                  onClick={() => setSelectedTool("zoom")}
+                >
+                  <Search size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  selected={activeTab !== null && selectedTool === "ruler"}
+                  onClick={() => setSelectedTool("ruler")}
+                >
+                  <RulerDimensionLine size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+              </TopbarButtonGroup>
+            </>)}
 
             <TopbarButton
               onClick={() => setShowFeatureModal(true)}
@@ -586,7 +591,7 @@ export default function GlyphsView() {
 
         {/* Right Sidebar */}
         {!isRightCollapsed && (
-          <Panel defaultSize={240} minSize={180} maxSize={360} className="relative bg-gray-50 dark:bg-zinc-900">
+          <Panel defaultSize={240} minSize={180} maxSize={360} className="relative bg-gray-50 dark:bg-zinc-900 select-none">
             <Topbar>
               <TopbarButton onClick={() => setIsRightCollapsed(true)}>
                 <PanelRightClose size={18} strokeWidth={1.5} />
