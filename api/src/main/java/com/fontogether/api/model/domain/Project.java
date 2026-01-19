@@ -26,4 +26,8 @@ public class Project {
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    // Transient fields for API response
+    private String role;      // OWNER, EDITOR, VIEWER
+    private Boolean isShared; // true if not owner
 }

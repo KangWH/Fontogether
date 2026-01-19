@@ -5,6 +5,8 @@ import com.fontogether.api.service.UserService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -51,6 +53,43 @@ public class UserController {
     @Data
     public static class LoginRequest {
         private String email;
+        private String password;
+    }
+    @GetMapping("/{userId}")
+    public ResponseEntity<?> getUser(@PathVariable("userId") Long userId) {
+        try {
+            User user = userService.getUser(userId);
+            // Hide password
+            user.setPassword(null);
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{userId}")
+    public ResponseEntity<?> updateUser(@PathVariable("userId") Long userId, @RequestBody UpdateRequest request) {
+        try {
+            userService.updateUser(userId, request.getNickname(), request.getPassword());
+            return ResponseEntity.ok("User updated successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Update Error: " + e.getMessage());
+        }
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{userId}")
+    public ResponseEntity<?> deleteUser(@PathVariable("userId") Long userId) {
+        try {
+            userService.deleteUser(userId);
+            return ResponseEntity.ok("User deleted successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Delete Error: " + e.getMessage());
+        }
+    }
+
+    @Data
+    public static class UpdateRequest {
+        private String nickname;
         private String password;
     }
 }

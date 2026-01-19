@@ -49,37 +49,14 @@ src/main/java/com/fontogether/api/
 
 ## API 엔드포인트
 
-### REST API
+자세한 API 명세는 `API_DOCUMENTATION.md` 파일을 참고하세요.
 
-#### 글리프 조회
-```
-GET /api/projects/{projectId}/glyphs/{unicode}
-```
-
-#### 프로젝트의 모든 글리프 조회
-```
-GET /api/projects/{projectId}/glyphs
-```
-
-#### 글리프 저장/업데이트
-```
-POST /api/projects/{projectId}/glyphs
-Content-Type: application/json
-
-{
-  "unicode": 65,
-  "glyphName": "A",
-  "pathData": "{\"contours\": [...]}",
-  "advanceWidth": 600,
-  "userId": 1,
-  "nickname": "사용자1"
-}
-```
-
-#### 협업자 수 조회
-```
-GET /api/projects/{projectId}/glyphs/collaborators/count
-```
+### REST API 요약
+- **Auth**: `/api/auth/google`, `/api/users/login`, `/api/users/signup`
+- **User**: `/api/users/{id}`, `/api/projects/user/{id}`
+- **Project**: `/api/projects`, `/api/projects/template`, `/api/projects/{id}`
+- **Collaboration**: `/api/projects/{id}/collaborators`
+- **Glyph**: `/api/projects/{id}/glyphs`
 
 ### WebSocket
 
@@ -98,6 +75,11 @@ SUBSCRIBE /topic/project/{projectId}/glyph/update
 **사용자 상태 변경 알림**
 ```
 SUBSCRIBE /topic/project/{projectId}/presence
+```
+
+**강퇴 알림**
+```
+SUBSCRIBE /topic/project/{projectId}/kick
 ```
 
 #### 메시지 발행 (Client -> Server)
@@ -247,9 +229,10 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 ## 향후 계획
 
 - [ ] Spring Boot 애플리케이션도 Docker 컨테이너화
-- [ ] 인증/인가 시스템 추가
-- [ ] 프로젝트 관리 API 추가
-- [ ] 사용자 관리 API 추가
+- [x] 인증/인가 시스템 추가 (Local & Google OAuth Session)
+- [x] 프로젝트 관리 API 추가
+- [x] 사용자 관리 API 추가
+- [x] 협업 초대 및 권한 관리 API 추가
 
 ## 라이선스
 

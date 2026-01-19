@@ -47,7 +47,35 @@
   }
   ```
 
-### 3. 사용자 프로젝트 목록 조회
+  ```
+
+### 3. 사용자 상세 조회
+- **URL**: `GET /api/users/{userId}`
+- **Response**: `200 OK`
+  ```json
+  {
+      "id": 1,
+      "email": "user@example.com",
+      "nickname": "Updated Nickname"
+  }
+  ```
+
+### 4. 사용자 정보 수정
+- **URL**: `PUT /api/users/{userId}`
+- **Request Body**:
+  ```json
+  {
+      "nickname": "New Nickname",
+      "password": "newpassword123" 
+  }
+  ```
+- **Response**: `200 OK`
+
+### 5. 회원 탈퇴
+- **URL**: `DELETE /api/users/{userId}`
+- **Response**: `200 OK`
+
+### 6. 사용자 프로젝트 목록 조회
 - **URL**: `GET /api/projects/user/{userId}`
 - **Response**: `200 OK` (List of Projects)
   ```json
@@ -56,6 +84,16 @@
       "projectId": 1,
       "title": "My First Font",
       "ownerId": 1,
+      "role": "OWNER",
+      "isShared": false,
+      "createdAt": "..."
+    },
+    {
+      "projectId": 2,
+      "title": "Shared Project",
+      "ownerId": 5,
+      "role": "EDITOR",
+      "isShared": true,
       "createdAt": "..."
     }
   ]
@@ -138,8 +176,88 @@
   ```
 
 ### 4. 접속자 수 조회
-- **URL**: `GET /api/projects/{projectId}/collaborators/count`
+- **URL**: `GET /api/projects/{projectId}/glyphs/collaborators/count`
 - **Response**: `Number` (현재 접속 중인 사용자 수)
+
+---
+
+## 📁 Project Management API
+> 프로젝트 생성, 수정, 삭제
+
+### 1. 템플릿으로 프로젝트 생성
+- **URL**: `POST /api/projects/template`
+- **Request Body**:
+  ```json
+  {
+      "ownerId": 1,
+      "templateName": "Basic" 
+  }
+  ```
+  *(templateName: "Empty" or "Basic")*
+- **Response**: `200 OK` (ProjectId: `Long`)
+
+### 2. 프로젝트 메타데이터 수정
+- **URL**: `PUT /api/projects/{projectId}`
+- **Request Body**:
+  ```json
+  {
+      "userId": 1,
+      "title": "New Title"
+  }
+  ```
+- **Response**: `200 OK`
+
+### 3. 프로젝트 삭제
+- **URL**: `DELETE /api/projects/{projectId}?userId={userId}`
+- **Response**: `200 OK`
+
+---
+
+## 🤝 Collaboration API
+> 협업자 초대 및 관리
+
+### 1. 협업자 목록 조회
+- **URL**: `GET /api/projects/{projectId}/collaborators`
+- **Response**: `200 OK`
+  ```json
+  [
+      {
+          "userId": 2,
+          "nickname": "Partner",
+          "email": "partner@example.com",
+          "role": "EDITOR", 
+          "joinedAt": "..."
+      }
+  ]
+  ```
+
+### 2. 협업자 초대 (추가)
+- **URL**: `POST /api/projects/{projectId}/collaborators`
+- **Request Body**:
+  ```json
+  {
+      "requesterId": 1,
+      "email": "friend@example.com",
+      "role": "EDITOR"
+  }
+  ```
+- **Response**: `200 OK`
+
+### 3. 협업자 권한 수정
+- **URL**: `PUT /api/projects/{projectId}/collaborators/{targetUserId}`
+- **Request Body**:
+  ```json
+  {
+      "requesterId": 1,
+      "role": "VIEWER"
+  }
+  ```
+- **Response**: `200 OK`
+
+### 4. 협업자 내보내기 (강퇴)
+- **URL**: `DELETE /api/projects/{projectId}/collaborators/{targetUserId}?requesterId={requesterId}`
+- **Response**: `200 OK`
+- **Side Effect**: 해당 사용자가 접속 중이면 WebSocket으로 강퇴 알림 전송됨.
 
 ---
 
@@ -189,6 +307,7 @@
   ```
   *(다른 사용자에게 "누가 이 글자를 고치고 있음"을 알림)*
 
-#### D. 편집 종료 (Blur)
-- **Send To**: `/app/glyph/stop-editing`
-- **Payload**: `{ "userId": 1, "projectId": 1 }`
+#### E. 강퇴 알림 (Kick)
+- **Subscribe**: `/topic/project/{projectId}/kick`
+- **Payload**: `{ "kickedUserId": 1 }`
+- **Action**: 클라이언트는 이 메시지를 받으면 자신이 강퇴된 것인지 확인하고 메인 화면으로 이동해야 함.

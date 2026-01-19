@@ -23,4 +23,51 @@ public class ProjectController {
         List<Project> projects = projectService.getProjectsByUserId(userId);
         return ResponseEntity.ok(projects);
     }
+    @org.springframework.web.bind.annotation.PostMapping("/template")
+    public ResponseEntity<?> createProjectFromTemplate(@org.springframework.web.bind.annotation.RequestBody CreateTemplateRequest request) {
+        try {
+            Long projectId = projectService.createProjectFromTemplate(request.getOwnerId(), request.getTemplateName());
+            return ResponseEntity.ok(projectId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Creation Error: " + e.getMessage());
+        }
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{projectId}")
+    public ResponseEntity<?> updateProject(@org.springframework.web.bind.annotation.PathVariable("projectId") Long projectId, 
+                                           @org.springframework.web.bind.annotation.RequestBody UpdateProjectRequest request) {
+        try {
+            projectService.updateProject(request.getUserId(), projectId, request.getTitle());
+            return ResponseEntity.ok("Project updated successfully");
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Update Error: " + e.getMessage());
+        }
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{projectId}")
+    public ResponseEntity<?> deleteProject(@org.springframework.web.bind.annotation.PathVariable("projectId") Long projectId, 
+                                           @org.springframework.web.bind.annotation.RequestParam("userId") Long userId) {
+        try {
+            projectService.deleteProject(userId, projectId);
+            return ResponseEntity.ok("Project deleted successfully");
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Delete Error: " + e.getMessage());
+        }
+    }
+
+    @lombok.Data
+    public static class UpdateProjectRequest {
+        private Long userId;
+        private String title;
+    }
+
+    @lombok.Data
+    public static class CreateTemplateRequest {
+        private Long ownerId;
+        private String templateName; // "Empty", "Basic"
+    }
 }

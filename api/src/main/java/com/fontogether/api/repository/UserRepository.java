@@ -66,4 +66,24 @@ public class UserRepository {
             return Optional.empty();
         }
     }
+
+    public Optional<User> findById(Long id) {
+        String sql = "SELECT * FROM users WHERE id = ?";
+        try {
+            User user = jdbcTemplate.queryForObject(sql, userRowMapper, id);
+            return Optional.ofNullable(user);
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    public void update(User user) {
+        String sql = "UPDATE users SET nickname = ?, password = ? WHERE id = ?";
+        jdbcTemplate.update(sql, user.getNickname(), user.getPassword(), user.getId());
+    }
+
+    public void deleteById(Long id) {
+        String sql = "DELETE FROM users WHERE id = ?";
+        jdbcTemplate.update(sql, id);
+    }
 }

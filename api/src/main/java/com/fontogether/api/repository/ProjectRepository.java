@@ -40,12 +40,105 @@ public class ProjectRepository {
      */
     public List<Project> findAllByUserId(Long userId) {
         String sql = """
-            SELECT DISTINCT p.*
+            SELECT DISTINCT p.*,
+                   CASE WHEN p.owner_id = ? THEN 'OWNER' ELSE 'EDITOR' END as role
             FROM font_project p
             LEFT JOIN project_collaborators pc ON p.project_id = pc.project_id
             WHERE p.owner_id = ? OR pc.user_id = ?
             ORDER BY p.updated_at DESC
         """;
-        return jdbcTemplate.query(sql, projectRowMapper, userId, userId);
+        
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Project p = projectRowMapper.mapRow(rs, rowNum);
+            String role = rs.getString("role");
+            p.setRole(role);
+            p.setIsShared(!"OWNER".equals(role));
+            return p;
+        }, userId, userId, userId);
+    }
+    public Long save(Project project) {
+        String sql = "INSERT INTO font_project (title, owner_id, meta_info, font_info, groups, kerning, features, layer_config) " +
+                     "VALUES (?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?::jsonb)";
+        
+        org.springframework.jdbc.support.KeyHolder keyHolder = new org.springframework.jdbc.support.GeneratedKeyHolder();
+
+        jdbcTemplate.update(connection -> {
+            java.sql.PreparedStatement ps = connection.prepareStatement(sql, new String[]{"project_id"});
+            ps.setString(1, project.getTitle());
+            ps.setLong(2, project.getOwnerId());
+            ps.setString(3, project.getMetaInfo());
+            ps.setString(4, project.getFontInfo());
+            ps.setString(5, project.getGroups());
+            ps.setString(6, project.getKerning());
+            ps.setString(7, project.getFeatures());
+            ps.setString(8, project.getLayerConfig());
+            return ps;
+        }, keyHolder);
+
+        return keyHolder.getKey().longValue();
+    }
+
+    public java.util.Optional<Project> findById(Long projectId) {
+        String sql = "SELECT * FROM font_project WHERE project_id = ?";
+        try {
+            Project project = jdbcTemplate.queryForObject(sql, projectRowMapper, projectId);
+            return java.util.Optional.ofNullable(project);
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    public void update(Project project) {
+        String sql = "UPDATE font_project SET title = ?, updated_at = NOW() WHERE project_id = ?";
+        jdbcTemplate.update(sql, project.getTitle(), project.getProjectId());
+    }
+
+    public void deleteById(Long projectId) {
+        String sql = "DELETE FROM font_project WHERE project_id = ?";
+        jdbcTemplate.update(sql, projectId);
+    }
+    // --- Collaboration Methods ---
+
+    public List<Collaborator> findCollaborators(Long projectId) {
+        String sql = """
+            SELECT u.id, u.nickname, u.email, pc.role, pc.joined_at
+            FROM project_collaborators pc
+            JOIN users u ON pc.user_id = u.id
+            WHERE pc.project_id = ?
+        """;
+        
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Collaborator c = new Collaborator();
+            c.setUserId(rs.getLong("id"));
+            c.setNickname(rs.getString("nickname"));
+            c.setEmail(rs.getString("email"));
+            c.setRole(rs.getString("role"));
+            c.setJoinedAt(rs.getTimestamp("joined_at").toLocalDateTime());
+            return c;
+        }, projectId);
+    }
+
+    public void addCollaborator(Long projectId, Long userId, String role) {
+        String sql = "INSERT INTO project_collaborators (project_id, user_id, role) VALUES (?, ?, ?)";
+        jdbcTemplate.update(sql, projectId, userId, role);
+    }
+
+    public void updateCollaboratorRole(Long projectId, Long userId, String newRole) {
+        String sql = "UPDATE project_collaborators SET role = ? WHERE project_id = ? AND user_id = ?";
+        jdbcTemplate.update(sql, newRole, projectId, userId);
+    }
+
+    public void removeCollaborator(Long projectId, Long userId) {
+        String sql = "DELETE FROM project_collaborators WHERE project_id = ? AND user_id = ?";
+        jdbcTemplate.update(sql, projectId, userId);
+    }
+
+    @lombok.Data
+    public static class Collaborator {
+        private Long userId;
+        private String nickname;
+        private String email;
+        private String role;
+        private java.time.LocalDateTime joinedAt;
     }
 }
