@@ -1,8 +1,8 @@
 // 임시 폰트 데이터 생성
-import { FontData, GlyphData } from '@/types/font';
+import { FontData, GlyphData_OLD } from '@/types/font';
 
 export function createMockFontData(): FontData {
-  const glyphs: GlyphData[] = [];
+  const glyphs: GlyphData_OLD[] = [];
   
   // 기본 라틴 문자
   for (let i = 0; i < 26; i++) {

@@ -1,6 +1,6 @@
 // UFO 형식의 폰트 데이터 구조 (JSON 변환 형태)
 
-export interface GlyphData {
+export interface GlyphData_OLD {
   id: number;
   name: string;
   unicode?: number[];
@@ -44,7 +44,7 @@ export interface Component {
 export interface FontData {
   metadata: FontMetadata;
   metrics: FontMetrics;
-  glyphs: GlyphData[];
+  glyphs: GlyphData_OLD[];
   features?: FeatureFile;
   groups?: { [key: string]: string[] }; // 그룹 이름 -> 글리프 이름 배열
   kerning?: { [key: string]: number }; // 케닝 데이터
@@ -119,3 +119,211 @@ export type FilterCategory =
   | 'none';
 
 export type ColorTag = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'gray';
+
+
+
+
+/* =============== */
+
+export interface ProjectData {
+  project_id: number;
+  title: string;
+  owner_id: number;
+  meta_info: MetaInfo;
+  font_info: FontInfo;
+  groups: Groups;
+  kerning: Kerning;
+  layer_config: LayerContents;
+  glyphs: Glyph[];
+  features: string;
+  created_at: Date;
+  updated_at: Date;
+};
+
+export interface MetaInfo {
+  creator: string;
+  formatVersion: number;
+  formatVersionMinor: number
+};
+
+export interface FontInfo {
+  /* Generic Identification Information */
+  familyName: string;
+  styleName: string;
+  styleMapFamilyName: string;
+  styleMapStyleName: string;
+  versionMajor: number;
+  versionMinor: number;
+  year: number;
+
+  /* Generic Legal Information */
+  copyright: string;
+  trademark: string;
+
+  /* Generic Dimension Information */
+  unitsPerEm: number;
+  descender: number;
+  xHeight: number;
+  capHeight: number;
+  ascender: number;
+  italicAngle: number;
+
+  /* Generic Miscellaneous Information */
+  note: string
+
+  /* OpenType gasp Table Fields */
+  openTypeGaspRangeRecords: { rangeMaxPPEM: number, rangeGaspBehavior: number[] }[];
+
+  /* OpenType head Table Fields */
+  openTypeHeadCreated: string;
+  openTypeHeadLowestRecPPEM: string;
+  openTYpeHeadFlags: number[];
+
+  /* OpenType hhea Table Fields */
+  openTypeHheaAscender: number;
+  openTypeHheaDescender: number;
+  openTypeHheaLineGap: number;
+  openTypeHheaCaretSlopeRise: number;
+  openTypeHheaCaretSlopeRun: number;
+  openTypeHheaCaretOffset: number;
+
+  /* OpenType name Table Fields */
+  openTypeNameDesigner: string;
+  openTypeNameDesignerURL: string;
+  openTypeNameManufacturer: string;
+  openTypeNameManufacturerURL: string;
+  openTypeNameLicense: string;
+  openTypeNameLicenseURL: string;
+  openTypeNameVersion: string;
+  openTypeNameUniqueID: string;
+  openTypeNameDescription: string;
+  openTypeNamePreferredFamilyName: string;
+  openTypeNamePreferredSubfamilyName: string;
+  openTypeNameCompatibleFullName: string;
+  openTypeNameSampleText: string;
+  openTypeNameWWSFamilyName: string;
+  openTypeNameWWSSubfamilyName: string;
+  openTypeNameRecords: { nameID: number, platformID: number, encodingID: number, languageID: number, string: string }[];
+
+  /* OpenType OS/2 Table Fields */
+  openTypeOS2WidthClass: number;
+  openTypeOS2WeightClass: number;
+  openTypeOS2Selection: number[];
+  openTypeOS2VendorID: string;
+  openTypeOS2Panose: number[];
+  openTypeOS2FamilyClass: number[];
+  openTypeOS2UnicodeRanges: number[];
+  openTypeOS2CodePageRanges: number[];
+  openTypeOS2TypoAscender: number;
+  openTypeOS2TypoDescender: number;
+  openTypeOS2TypoLineGap: number;
+  openTypeOS2WinAscent: number;
+  openTypeOS2WinDescent: number;
+  openTypeOS2Type: number[];
+  openTypeOS2SubscriptXSize: number;
+  openTypeOS2SubscriptYSize: number;
+  openTypeOS2SubscriptXOffset: number;
+  openTypeOS2SubscriptYOffset: number;
+  openTypeOS2SuperscriptXSize: number;
+  openTypeOS2SuperscriptYSize: number;
+  openTypeOS2SuperscriptXOffset: number;
+  openTypeOS2SuperscriptYOffset: number;
+  openTypeOS2StrikeoutSize: number;
+  openTypeOS2StrikeoutPosition: number;
+
+  /* OpenType vhea Table Fields */
+  openTypeVheaVertTypoAscender: number;
+  openTypeVheaVertTypoDescender: number;
+  openTypeVheaVertTypoLineGap: number;
+  openTypeVheaCaretSlopeRise: number;
+  openTypeVheaCaretSlopeRun: number;
+  openTypeVheaCaretOffset: number;
+
+  /* PostScript Specific Data */
+  // 22 properties
+
+  /* Macintosh FOND Resource Data */
+  mackntoshFONDFamilyID: number;
+  macintoshFONDName: string;
+
+  /* WOFF Data */
+  woffMajorVersion: number;
+  woffMinorVersion: number;
+  woffMetadataUniqueID: { id: string };
+  woffMetadataVendor: { name: string, url: string, dir: string, class: string };
+  woffMetadataCredits: { credits: { name: string, url: string, rold: string, dir: string, class: string }[] };
+  woffMetadataDescription: { url: string, text: WOFFMetadataTextRecord[] };
+  woffMetadataLicense: { url: string, id: string, text: WOFFMetadataTextRecord[] };
+  woffMetadataCopyright: { text: WOFFMetadataTextRecord[] };
+  woffMetadataTrademark: { text: WOFFMetadataTextRecord[] };
+  woffMetadataLicensee: { name: string, dir: string, class: string };
+  woffMetadataExtensions: WOFFMetadataExtensionRecord[];
+
+  /* Guidelines */
+  guidelines: Guideline[];
+}
+
+/* WOFF */
+
+interface WOFFMetadataTextRecord {
+  text: string;
+  language: string;
+  dir: string;
+  class: string;
+}
+
+interface WOFFMetadataExtensionRecord {
+  id: string;
+  names: WOFFMetadataExtensionNameRecord[];
+  items: WOFFMetadataExtensionItemRecord[];
+}
+
+interface WOFFMetadataExtensionItemRecord {
+  id: string;
+  names: WOFFMetadataExtensionNameRecord[];
+  values: WOFFMetadataExtensionValueRecord[];
+}
+
+interface WOFFMetadataExtensionNameRecord {
+  text: string;
+  language: string;
+  dir: string;
+  class: string;
+}
+
+interface WOFFMetadataExtensionValueRecord {
+  text: string;
+  language: string;
+  dir: string;
+  class: string;
+}
+
+/* Guideline */
+
+interface Guideline {
+  x: number;
+  y: number;
+  angle: number;
+  name: string;
+  color: string;
+  identifier: string;
+}
+
+/* Groups */
+
+type Groups = { [key: string]: string[] };
+
+/* Kerning */
+
+type Kerning = { [key: string]: { [key: string]: number } };
+
+/* Layer Contents */
+
+type LayerContents = LayerContent[];
+type LayerContent = string[];
+
+/* Glyph data */
+
+interface Glyph {
+
+}

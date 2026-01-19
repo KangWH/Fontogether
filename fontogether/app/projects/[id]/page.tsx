@@ -80,7 +80,7 @@ export default function GlyphsView() {
   }
 
   useEffect(() => {
-    fetch(`/api/projects/user/${user?.id || 0}`)
+    fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/user/${user?.id || 0}`)
     .then(res => res.json())
     .then(data => {
       setProjects(data);

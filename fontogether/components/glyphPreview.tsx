@@ -1,8 +1,8 @@
-import { GlyphData, ColorTag } from "@/types/font";
+import { GlyphData_OLD, ColorTag } from "@/types/font";
 
 interface GlyphPreviewProps {
   id: number;
-  glyph?: GlyphData;
+  glyph?: GlyphData_OLD;
   onDoubleClick?: () => void;
   isSelected: boolean;
   size?: number;

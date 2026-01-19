@@ -7,39 +7,44 @@ import { useUserStore } from '@/store/userStore';
 function SocialLoginView() {
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  const setUser = useUserStore((s) => s.setUser);
   
   useEffect(() => {
     const code = searchParams.get('code');
 
     if (code) {
-      console.log('Authorization code received:', code);
       sendCodeToBackend(code);
     }
   }, [searchParams]);
 
   const sendCodeToBackend = async (code: string) => {
     try {
-      const response = await fetch('/api/users/me', {
-        // method: 'POST',
-        // headers: { 'Content-Type': 'application/json' },
-        // body: JSON.stringify({ code }),
-        // credentials: 'include',
+      const response = await fetch(process.env.NEXT_PUBLIC_SERVER_URI + '/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, redirectUri: process.env.NEXT_PUBLIC_REDIRECTION_URI }),
+        credentials: 'include',
       });
       const result = await response.json();
+      console.log(result);
 
       if (response.status === 200) {
         // 계정 존재: 로그인 처리
-        // 현재 계정 상태를 쿠키에 저장
         console.log('login success');
-        router.push(`/projects/${0}`)
+        setUser(result.user);
+        router.push(`/projects/${result.user.id}`);
       } else if (response.status === 404) {
         // 계정 없음: 회원가입 페이지로 리다이렉트
         const query = new URLSearchParams({
-          email: result.email,
-          name: result.name,
+          email: result.user.email,
+          name: result.user.nickname,
         }).toString();
         console.log(query);
         router.push(`/socialRegister?${query}`);
+      } else {
+        console.error(response)
+        throw new Error(result.response)
       }
     } catch (error) {
       console.error("Error during social login:", error);

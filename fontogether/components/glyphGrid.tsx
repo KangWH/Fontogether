@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import GlyphPreview from "./glyphPreview";
-import { FontData, GlyphData, SortOption, FilterCategory, ColorTag } from "@/types/font";
+import { FontData, GlyphData_OLD, SortOption, FilterCategory, ColorTag } from "@/types/font";
 
 interface GlyphGridProps {
   fontData: FontData;

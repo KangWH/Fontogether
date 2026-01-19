@@ -1,13 +1,13 @@
 "use client";
 
 import { AGL_DATA } from "@/data/AGL_DATA";
-import { GlyphData, FontData } from "@/types/font";
+import { GlyphData_OLD, FontData } from "@/types/font";
 import { useState, useEffect, useRef } from "react";
 
 interface GlyphPropertiesPanelProps {
-  glyphs: GlyphData[];
+  glyphs: GlyphData_OLD[];
   fontData: FontData;
-  onGlyphsChange: (glyphs: GlyphData[]) => void;
+  onGlyphsChange: (glyphs: GlyphData_OLD[]) => void;
 }
 
 export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange }: GlyphPropertiesPanelProps) {
@@ -64,7 +64,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
     <div className="h-full overflow-y-auto p-4 space-y-4 text-sm">
       {/* 메타데이터 */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold">메타데이터 — 글리프 {firstGlyph.id}</h3>
+        <h3 className="text-sm font-bold">메타데이터{isMultiple || (<> — 글리프 {firstGlyph.id}</>)}</h3>
         <div>
           <label className="block text-sm font-medium mb-1">글리프 이름</label>
           <input

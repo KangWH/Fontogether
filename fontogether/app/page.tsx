@@ -36,7 +36,7 @@ export default function LoginView() {
     console.log('Trying to log in');
 
     try {
-      const response = await fetch('/api/users/login', {
+      const response = await fetch(process.env.NEXT_PUBLIC_SERVER_URI + '/api/users/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -53,7 +53,7 @@ export default function LoginView() {
       setUser(user);
       console.log(user);
 
-      const projectsResponse = await fetch(`/api/projects/user/${user.id}`);
+      const projectsResponse = await fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/user/${user.id}`);
       if (!projectsResponse.ok) {
         throw new Error('Failed to fetch projects');
       }

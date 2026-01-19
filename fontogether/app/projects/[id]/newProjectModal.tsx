@@ -38,7 +38,7 @@ export default function NewProjectModal({ onClose }: { onClose: () => void }) {
     formData.append("file", selectedFile);
 
     try {
-      const response = await fetch("http://10.249.16.96:444/api/projects/upload", {
+      const response = await fetch(process.env.NEXT_PUBLIC_SERVER_URI + '/api/projects/upload', {
         method: "POST",
         body: formData,
       });

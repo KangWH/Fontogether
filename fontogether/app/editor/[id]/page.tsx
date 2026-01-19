@@ -18,9 +18,11 @@ import GlyphPropertiesPanel from "@/components/glyphPropertiesPanel";
 import PreviewPanel from "@/components/previewPanel";
 import OpenTypeFeaturePanel from "@/components/opentypeFeaturePanel";
 import CollaboratePanel from "@/components/collaboratorPanel";
-import { FontData, GlyphData, SortOption, FilterCategory, ColorTag } from "@/types/font";
+import { FontData, GlyphData_OLD, SortOption, FilterCategory, ColorTag } from "@/types/font";
 import { createMockFontData } from "@/utils/mockData";
-import { Plus, Trash2, ChevronDown } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import opentype from 'opentype.js'
+
 
 const DynamicGlyphCanvas = dynamic(() => import('@/components/glyphEditor'), {
   ssr: false,
@@ -32,7 +34,7 @@ export default function GlyphsView() {
 
   // --- Font Data ---
   const [fontData, setFontData] = useState<FontData>(createMockFontData());
-  const [clipboardGlyphs, setClipboardGlyphs] = useState<GlyphData[]>([]);
+  const [clipboardGlyphs, setClipboardGlyphs] = useState<GlyphData_OLD[]>([]);
 
   // --- Sidebar State ---
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -116,7 +118,7 @@ export default function GlyphsView() {
   // --- Glyph operations ---
   const handleAddGlyph = useCallback(() => {
     const newId = Math.max(...fontData.glyphs.map(g => g.id), -1) + 1;
-    const newGlyph: GlyphData = {
+    const newGlyph: GlyphData_OLD = {
       id: newId,
       name: `glyph${newId}`,
       advanceWidth: 500,
@@ -136,7 +138,7 @@ export default function GlyphsView() {
       if (!glyph) return null;
       const newId = Math.max(...fontData.glyphs.map(g => g.id), -1) + 1;
       return { ...glyph, id: newId, name: `${glyph.name}.copy` };
-    }).filter((g): g is GlyphData => g !== null);
+    }).filter((g): g is GlyphData_OLD => g !== null);
     setFontData(prev => ({
       ...prev,
       glyphs: [...prev.glyphs, ...newGlyphs],
@@ -194,7 +196,7 @@ export default function GlyphsView() {
   }, [clipboardGlyphs, fontData.glyphs, selectedIds]);
 
   const handleGlyphReorder = useCallback((newOrder: number[]) => {
-    const orderedGlyphs = newOrder.map(id => fontData.glyphs.find(g => g.id === id)).filter((g): g is GlyphData => g !== undefined);
+    const orderedGlyphs = newOrder.map(id => fontData.glyphs.find(g => g.id === id)).filter((g): g is GlyphData_OLD => g !== undefined);
     const remainingGlyphs = fontData.glyphs.filter(g => !newOrder.includes(g.id));
     setFontData(prev => ({
       ...prev,
@@ -437,28 +439,6 @@ export default function GlyphsView() {
 
             {/* Glyph editor tools (only in glyph editor) */}
             {activeTab !== null && (<>
-              {/* Zoom control */}
-              <TopbarButtonGroup>
-                <TopbarGroupedButton
-                  disabled={activeTab === null}
-                  onClick={() => setZoomAction({ type: 'OUT', timestamp: Date.now() })}
-                >
-                  <ZoomOut size={18} strokeWidth={1.5} />
-                </TopbarGroupedButton>
-                <TopbarGroupedButton
-                  disabled={activeTab === null}
-                  onClick={() => setZoomAction({ type: 'RESET', timestamp: Date.now() })}
-                >
-                  <Fullscreen size={18} strokeWidth={1.5} />
-                </TopbarGroupedButton>
-                <TopbarGroupedButton
-                  disabled={activeTab === null}
-                  onClick={() => setZoomAction({ type: 'IN', timestamp: Date.now() })}
-                >
-                  <ZoomIn size={18} strokeWidth={1.5} />
-                </TopbarGroupedButton>
-              </TopbarButtonGroup>
-
               {/* Editor toolbar */}
               <TopbarButtonGroup>
                 <TopbarGroupedButton
@@ -516,6 +496,28 @@ export default function GlyphsView() {
                   onClick={() => setSelectedTool("ruler")}
                 >
                   <RulerDimensionLine size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+              </TopbarButtonGroup>
+
+              {/* Zoom control */}
+              <TopbarButtonGroup>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  onClick={() => setZoomAction({ type: 'OUT', timestamp: Date.now() })}
+                >
+                  <ZoomOut size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  onClick={() => setZoomAction({ type: 'RESET', timestamp: Date.now() })}
+                >
+                  <span className="text-xs">100%</span>
+                </TopbarGroupedButton>
+                <TopbarGroupedButton
+                  disabled={activeTab === null}
+                  onClick={() => setZoomAction({ type: 'IN', timestamp: Date.now() })}
+                >
+                  <ZoomIn size={18} strokeWidth={1.5} />
                 </TopbarGroupedButton>
               </TopbarButtonGroup>
             </>)}
@@ -633,7 +635,7 @@ export default function GlyphsView() {
                   <GlyphPropertiesPanel
                     glyphs={activeTab !== null
                       ? fontData.glyphs.filter(g => g.id === activeTab)
-                      : Array.from(selectedIds).map(id => fontData.glyphs.find(g => g.id === id)).filter((g): g is GlyphData => g !== undefined)
+                      : Array.from(selectedIds).map(id => fontData.glyphs.find(g => g.id === id)).filter((g): g is GlyphData_OLD => g !== undefined)
                     }
                     fontData={fontData}
                     onGlyphsChange={(newGlyphs) => {

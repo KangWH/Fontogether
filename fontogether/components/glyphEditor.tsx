@@ -378,9 +378,9 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
           to: event.point,
           strokeColor: '#606060',
           fillColor: new paper.Color(128/255, 128/255, 128/255, 0.1),
-          strokeWidth: 1,
-          guide: true
+          strokeWidth: 1
         });
+        selectionRect.data.isGuide = true
       }
     };
 
