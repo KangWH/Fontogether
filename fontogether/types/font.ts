@@ -130,10 +130,13 @@ export interface ProjectData {
   features: string;
   // fontInfo: FontInfo;
   fontInfo: string;
-  groups: Groups;
+  groups: string;
+  // groups: Groups;
   isShared: boolean;
-  kerning: Kerning;
-  layerConfig: LayerContents;
+  kerning: string;
+  // kerning: Kerning;
+  layerConfig: string;
+  // layerConfig: LayerContents;
   // metaInfo: MetaInfo;
   metaInfo: string;
   ownerId: number;

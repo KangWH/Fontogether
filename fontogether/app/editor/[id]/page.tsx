@@ -38,7 +38,8 @@ export default function GlyphsView() {
   const pathname = usePathname();
   const lastDir = pathname.split('/').pop() || '';
   const projectId = parseInt(lastDir);
-  const user = useUserStore((s) => s.user);
+  // const user = useUserStore((s) => s.user);
+  const user = useUserStore(s => s.user) || {id: 0, nickname: 'Nickname'};
   const router = useRouter();
 
 
@@ -49,7 +50,7 @@ export default function GlyphsView() {
       webSocketFactory: () => new SockJS(process.env.NEXT_PUBLIC_SERVER_URI + '/ws'),
       reconnectDelay: 5000,
       debug: (str) => {
-        console.log(str);
+        // console.log(str);
       },
       onConnect: () => {
         console.log("connected");
@@ -69,14 +70,27 @@ export default function GlyphsView() {
     return client;
   };
 
+  const [updatedTime, setUpdatedTime] = useState<number | null>(null);
   const subscribeToTopics = (client: Client, projectId: number, userId: number) => {
     // A. 글리프 업데이트 (그리기 데이터)
     client.subscribe(`/topic/project/${projectId}/glyph/update`, (message) => {
       const payload = JSON.parse(message.body);
       if (payload.userId === userId) return; // 내가 보낸 건 무시 (이미 내 화면엔 그려져 있으므로)
+
+      setGlyphData(prev => {
+        const glyphIndex = prev.findIndex(g => g.glyphName === payload.glyphName);
+        if (glyphIndex < 0)
+          return prev;
+        const newData = [...prev];
+        newData[glyphIndex] = {
+          ...newData[glyphIndex],
+          outlineData: JSON.parse(payload.outlineData)
+        };
+        return newData;
+      });
+      setUpdatedTime(Date.now());
       
-      console.log(`${payload.nickname}님이 글리프를 수정함:`, payload);
-      // Canvas UI 업데이트 로직...
+      // console.log(`${payload.nickname}님이 글리프를 수정함:`, payload);
     });
 
     // B. 프로젝트 상세 정보 (커닝, 피처, 메타데이터)
@@ -93,7 +107,7 @@ export default function GlyphsView() {
     // C. 사용자 접속 현황 (입장/퇴장)
     client.subscribe(`/topic/project/${projectId}/presence`, (message) => {
       const presences = JSON.parse(message.body); // 현재 접속 중인 유저 리스트
-      console.log('현재 접속자 목록:', presences);
+      // console.log('현재 접속자 목록:', presences);
     });
 
     // D. 강퇴 알림 (강제 로그아웃)
@@ -101,12 +115,27 @@ export default function GlyphsView() {
       const payload = JSON.parse(message.body);
       if (payload.kickedUserId === userId) {
         router.push(`/projects/${userId}`); // 메인으로 리다이렉트
-        alert('프로젝트의 소유자가 접근 권한을 회수하였습니다.\n프로젝트 목록으로 이동합니다.');
+        // alert('프로젝트의 소유자가 접근 권한을 회수하였습니다.\n프로젝트 목록으로 이동합니다.');
       }
     });
   };
 
   const client = setupWebSocket(projectId, user.id, user.nickname) // <==================== Websocket setup here
+
+
+  /* Exit */
+
+  const handleExit = () => {
+    client.publish({
+      destination: '/app/project/leave',
+      body: JSON.stringify({ projectId, userId: user.id, nickname: user.nickname }),
+    });
+    if (activeTab !== null) {
+      setActiveTab(null);
+    } else {
+      router.back();
+    }
+  }
 
 
   // active users
@@ -279,9 +308,15 @@ export default function GlyphsView() {
   // --- Glyph operations ---
   const handleAddGlyph = useCallback(() => {
     const newId = crypto.randomUUID();
+
+    let newIndex = glyphData.length;
+    while (glyphData.findIndex(g => g.glyphName === `glyph${newIndex}`) >= 0) {
+      newIndex++;
+    }
+
     const newGlyph: GlyphData = {
       glyphUuid: newId,
-      glyphName: `glyph${newId}`,
+      glyphName: `glyph${newIndex}`,
       advanceWidth: 500,
       advanceHeight: 1000,
       formatVersion: 2,
@@ -294,6 +329,15 @@ export default function GlyphsView() {
       updatedAt: new Date()
     };
     setGlyphData(prev => [...prev, newGlyph]);
+
+    client.publish({
+      destination: '/app/glyph/action',
+      body: JSON.stringify({
+        projectId: 1,
+        action: 'ADD',
+        glyphName: `glyph${newIndex}`
+      })
+    });
   }, [glyphData]);
 
   const handleDuplicateGlyph = useCallback(() => {
@@ -312,13 +356,26 @@ export default function GlyphsView() {
 
   const handleDeleteGlyph = useCallback(() => {
     if (selectedIds.size === 0) return;
-    const deletedIds = Array.from(selectedIds);
+
+    selectedIds.forEach(id => {
+      const targetGlyphName = glyphData.find(g => g.glyphUuid === id)?.glyphName || '';
+      client.publish({
+        destination: '/app/glyph/action',
+        body: JSON.stringify({
+          projectId: 1,
+          action: 'DELETE',
+          glyphName: targetGlyphName
+        })
+      });
+    });
+
     setGlyphData(prev => 
       prev.filter(g => !selectedIds.has(g.glyphUuid)),
     );
     setSelectedIds(new Set());
+
     // 열려 있는 탭 닫기
-    deletedIds.forEach(id => {
+    selectedIds.forEach(id => {
       if (openedTabs.includes(id)) {
         closeTab(id);
       }
@@ -360,6 +417,17 @@ export default function GlyphsView() {
   const handleGlyphReorder = useCallback((newOrder: string[]) => {
     const orderedGlyphs = newOrder.map(id => glyphData.find(g => g.glyphUuid === id)).filter((g): g is GlyphData => g !== undefined);
     const remainingGlyphs = glyphData.filter(g => !newOrder.includes(g.glyphUuid));
+
+    const nameMap = [...orderedGlyphs.map(g => g.glyphName), ...remainingGlyphs.map(g => g.glyphName)];
+    client.publish({
+      destination: '/app/glyph/action',
+      body: JSON.stringify({
+        projectId: 1,
+        action: 'REORDER',
+        newOrder: nameMap
+      })
+    });
+
     setGlyphData(prev => [...orderedGlyphs, ...remainingGlyphs]);
   }, [glyphData]);
 
@@ -496,6 +564,24 @@ export default function GlyphsView() {
       <div className="p-4 text-lg text-center justify-center align-center h-screen grow">데이터 로드 중...</div>
     )
   }
+  // if (fontData === null) {
+  //   setFontData({
+  //     createdAt: new Date(),
+  //     features: '',
+  //     fontInfo: '',
+  //     groups: '',
+  //     isShared: false,
+  //     kerning: '',
+  //     layerConfig: '',
+  //     metaInfo: '',
+  //     ownerId: 1,
+  //     ownerNickname: 'Nickname',
+  //     projectId: 2,
+  //     role: 'OWNER',
+  //     title: 'Sample data',
+  //     updatedAt: new Date()
+  //   });
+  // }
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden relative">
@@ -505,13 +591,7 @@ export default function GlyphsView() {
           <Panel defaultSize={240} minSize={180} maxSize={360} className="relative bg-gray-50 dark:bg-zinc-900">
             <Topbar>
               <TopbarButton
-                onClick={() => {
-                  if (activeTab !== null) {
-                    setActiveTab(null);
-                  } else {
-                    router.back();
-                  }
-                }}
+                onClick={handleExit}
               >
                 <ChevronLeft size={18} strokeWidth={1.5} />
               </TopbarButton>
@@ -542,13 +622,7 @@ export default function GlyphsView() {
           <Topbar>
             {(isLeftCollapsed || activeTab !== null) && (
               <TopbarButton
-                onClick={() => {
-                  if (activeTab !== null) {
-                    setActiveTab(null);
-                  } else {
-                    router.back();
-                  }
-                }}
+                onClick={handleExit}
               >
                 <ChevronLeft size={18} strokeWidth={1.5} />
               </TopbarButton>
@@ -785,6 +859,7 @@ export default function GlyphsView() {
               <div className="flex-1 overflow-hidden">
                 <DynamicGlyphCanvas 
                   glyphData={glyphData.find(g => g.glyphUuid === activeTab)!!}
+                  updatedTime={updatedTime}
                   onGlyphDataChange={updateGlyphData}
                   key={`canvas-${activeTab}`}
                   zoomAction={zoomAction} 
@@ -846,8 +921,45 @@ export default function GlyphsView() {
                     }
                     fontData={sampleFontData}
                     onGlyphsChange={(newGlyphs) => {
+                      // argument: subject to update data
+                      const renamedGlyphs = newGlyphs.filter(ng => {
+                        const matchingGlyph = glyphData.find(g => g.glyphUuid === ng.glyphUuid);
+                        if (matchingGlyph === undefined)
+                          return false;
+                        return matchingGlyph.glyphName !== ng.glyphName;
+                      });
+                      renamedGlyphs.forEach(g => {
+                        const matchingNewGlyph = newGlyphs.find(ng => g.glyphUuid === ng.glyphUuid)
+                        if (matchingNewGlyph === undefined)
+                          return;
+
+                        const newName = matchingNewGlyph.glyphName;
+                        client.publish({
+                          destination: '/app/glyph/action',
+                          body: JSON.stringify({
+                            projectId: 1,
+                            action: 'RENAME',
+                            glyphName: g.glyphName,
+                            newName: newName
+                          })
+                        });
+                      });
+
                       setGlyphData(prev => prev.map(g => {
                         const updated = newGlyphs.find(ng => ng.glyphUuid === g.glyphUuid);
+
+                        if (updated !== undefined && updated.glyphName !== g.glyphName) {
+                          client.publish({
+                            destination: '/app/glyph/action',
+                            body: JSON.stringify({
+                              projectId: 1,
+                              action: 'RENAME',
+                              glyphName: g.glyphName,
+                              newName: updated.glyphName
+                            })
+                          });
+                        }
+
                         return updated || g;
                       }));
                     }}

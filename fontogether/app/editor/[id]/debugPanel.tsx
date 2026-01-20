@@ -4,11 +4,14 @@ import { useState } from "react";
 export default function DebugPanel({ fontData, onClose }: { fontData: ProjectData, onClose: () => void }) {
   const [selectedTab, setSelectedTab] = useState('features');
 
-  const tabNames = ['features', 'fontInfo', 'metaInfo'];
+  const tabNames = ['features', 'featuresJSON', 'fontInfo', 'fontInfoJSON', 'metaInfo'];
+
+  const featuresJSON = JSON.parse(fontData.features) || null;
+  const fontInfoJSON = JSON.parse(fontData.fontInfo) || null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
-      <div className="bg-white dark:bg-black rounded-xl shadow-lg dark:shadow-zinc-500/50 w-96 overflow-hidden">
+      <div className="bg-white dark:bg-black rounded-xl shadow-lg dark:shadow-zinc-500/50 overflow-hidden w-[80%] h-[80%] flex flex-col">
         {/* Header */}
         <div className="text-sm flex items-center justify-between p-2 border-b border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
           <div className="flex items-center gap-2">
@@ -36,17 +39,25 @@ export default function DebugPanel({ fontData, onClose }: { fontData: ProjectDat
           </div>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 grow">
           {selectedTab === 'features' && (
-            <textarea className="border p-1 rounded-md outline-none border-gray-300 dark:border-zinc-700 focus:border-blue-500 font-mono">{fontData.features}</textarea>
+            <textarea className="w-full h-full border p-1 rounded-md outline-none border-gray-300 dark:border-zinc-700 focus:border-blue-500 font-mono">{fontData.features}</textarea>
+          )}
+
+          {selectedTab === 'featuresJSON' && (
+            <textarea className="w-full h-full border p-1 rounded-md outline-none border-gray-300 dark:border-zinc-700 focus:border-blue-500 font-mono">{JSON.stringify(featuresJSON, null, 2)}</textarea>
           )}
 
           {selectedTab === 'fontInfo' && (
-            <textarea className="border p-1 rounded-md outline-none border-gray-300 dark:border-zinc-700 focus:border-blue-500 font-mono">{fontData.fontInfo}</textarea>
+            <textarea className="w-full h-full border p-1 rounded-md outline-none border-gray-300 dark:border-zinc-700 focus:border-blue-500 font-mono">{fontData.fontInfo}</textarea>
+          )}
+
+          {selectedTab === 'fontInfoJSON' && (
+            <textarea className="w-full h-full border p-1 rounded-md outline-none border-gray-300 dark:border-zinc-700 focus:border-blue-500 font-mono">{JSON.stringify(fontInfoJSON, null, 2)}</textarea>
           )}
 
           {selectedTab === 'metaInfo' && (
-            <textarea className="border p-1 rounded-md outline-none border-gray-300 dark:border-zinc-700 focus:border-blue-500 font-mono">{fontData.metaInfo}</textarea>
+            <textarea className="w-full h-full border p-1 rounded-md outline-none border-gray-300 dark:border-zinc-700 focus:border-blue-500 font-mono">{fontData.metaInfo}</textarea>
           )}
         </div>
 

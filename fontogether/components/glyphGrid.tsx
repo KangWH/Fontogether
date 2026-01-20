@@ -33,8 +33,7 @@ export default function GlyphGrid({
 
   // 필터링된 글리프 목록
   const filteredGlyphs = useMemo(() => {
-    console.log(glyphs.map((g, i) => `Index ${i}: ${g.glyphName}`));
-    
+    console.log('filteredGlyphs updated.');
     // 필터 적용
     if (filterCategory !== 'none' && filterValue) {
       glyphs = glyphs.filter(glyph => {
@@ -149,15 +148,17 @@ export default function GlyphGrid({
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
-    // if (draggedIndex !== null && sortOption === 'index' && onGlyphReorder) {
-    //   const newOrder = [...filteredGlyphs];
-    //   const [dragged] = newOrder.splice(draggedIndex, 1);
-    //   newOrder.splice(dropIndex, 0, dragged);
-    //   onGlyphReorder(newOrder.map(g => g.glyphUuid));
-    // }
+    if (draggedIndex !== null && sortOption === 'index' && onGlyphReorder) {
+      const newOrder = [...filteredGlyphs];
+      const [dragged] = newOrder.splice(draggedIndex, 1);
+      newOrder.splice(dropIndex, 0, dragged);
+      onGlyphReorder(newOrder.map(g => g.glyphUuid));
+    }
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
+
+  console.log("changes caught on glyphGrid");
 
   return (
     <div className="flex-1 h-full overflow-y-auto select-none">

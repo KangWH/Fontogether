@@ -31,17 +31,19 @@ export default function GlyphPreview({ id, glyph, onDoubleClick = () => {}, isSe
   // }
 
   useEffect(() => {
-    // console.log(`Drawing ${glyph?.glyphName}...`)
     const ctx = canvasRef.current?.getContext('2d');
     if (ctx) {
-    ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(0, 0, size, size);
       if (contours) {
         contours.forEach((contour: { points: PointData[] }) => {
           drawContourOnCanvas(size, glyph?.advanceWidth || 1000, ctx, contour.points);
         });
       }
     }
-  }, [size, contours]);
+    if (glyph?.glyphName === 'quotedbl') {
+      console.log("changes caught on glyphPreview; redrawing");
+    }
+  }, [glyph, size, contours]);
 
   return (
     <div

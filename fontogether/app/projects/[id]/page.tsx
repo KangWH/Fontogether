@@ -352,7 +352,7 @@ export default function GlyphsView() {
             />
           )}
           {isExportProjectModalOpen && (
-            <ExportProjectModal onClose={() => {setIsExportProjectModalOpen(false)}}></ExportProjectModal>
+            <ExportProjectModal projectIds={selectedIds} onClose={() => {setIsExportProjectModalOpen(false)}}></ExportProjectModal>
           )}
         </Group>
       </div>

@@ -14,6 +14,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
   const isMultiple = glyphs.length > 1;
   const firstGlyph = glyphs[0];
 
+  const [nameField, setNameField] = useState(firstGlyph.glyphName);
   const [unicodeField, setUnicodeField] = useState<string>('');
   const unicodeFieldRef = useRef<HTMLInputElement>(null);
 
@@ -31,7 +32,11 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
 
   useEffect(() => {
     if (document.activeElement === unicodeFieldRef.current) return;
-    const unicodeString = firstGlyph ? firstGlyph.unicodes.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') : ''
+
+    const glyphName = firstGlyph ? firstGlyph.glyphName : '';
+    setNameField(glyphName);
+
+    const unicodeString = firstGlyph ? firstGlyph.unicodes.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') : '';
     setUnicodeField(unicodeString);
   }, [glyphs.map(g => g.glyphUuid)]);
 
@@ -70,8 +75,8 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
           <label className="block text-sm font-medium mb-1">글리프 이름</label>
           <input
             type="text"
-            value={firstGlyph.glyphName}
-            onChange={(e) => updateGlyph('name', e.target.value)}
+            value={nameField}
+            onChange={(e) => {setNameField(e.target.value); updateGlyph('glyphName', e.target.value)}}
             disabled={isMultiple}
             className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 disabled:opacity-50"
           />
@@ -80,10 +85,12 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
               if (firstGlyph.unicodes[0]) {
                 const aglName = AGL_DATA[firstGlyph.unicodes[0]];
                 if (aglName) {
-                  updateGlyph('name', aglName);
-                } else {
+                  updateGlyph('glyphName', aglName);
+                } else if (firstGlyph.unicodes.length > 0) {
                   const hexString = firstGlyph.unicodes[0].toString(16).toUpperCase().padStart(4, '0');
-                  updateGlyph('name', `uni${hexString}`)
+                  updateGlyph('glyphName', `uni${hexString}`);
+                } else {
+                  updateGlyph('glyphName', 'glyph');
                 }
               }
             }}

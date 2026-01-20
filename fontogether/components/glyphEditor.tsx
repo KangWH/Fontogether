@@ -6,6 +6,7 @@ import { GlyphData } from "@/types/font";
 
 interface GlyphEditorProps {
   glyphData: GlyphData;
+  updatedTime: number | null;
   onGlyphDataChange: (a: GlyphData) => void;
   key: string;
   zoomAction: {
@@ -17,7 +18,7 @@ interface GlyphEditorProps {
   onToolChange?: (tool: string) => void;
 }
 
-export default function GlyphEditor({ glyphData, onGlyphDataChange, key, zoomAction, onZoomComplete, selectedTool, onToolChange }: GlyphEditorProps) {
+export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange, key, zoomAction, onZoomComplete, selectedTool, onToolChange }: GlyphEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const projectRef = useRef<paper.Project | null>(null);
 
@@ -57,6 +58,85 @@ export default function GlyphEditor({ glyphData, onGlyphDataChange, key, zoomAct
       // if (paper.view) paper.view.draw();
     }
   }, [clearHighlights]);
+
+  const drawGlyph = (glyphData: GlyphData) => {
+    glyphData.outlineData.contours.forEach((ct: any) => {
+      const contour = ct.points
+
+      const path = new paper.Path();
+      path.strokeColor = new paper.Color('black');
+      path.strokeWidth = 2;
+      path.closed = true;
+
+      // 3. 포인트 추가 로직 (순환 구조 고려)
+      // 시작점이 제어점일 경우를 대비해 첫 On-curve 점을 찾음
+      const startIndex = contour.findIndex((p: any) => p.type === 'line' || p.type === 'curve');
+      if (startIndex === -1) return;
+
+      for (let i = 0; i <= contour.length; i++) { 
+        const idx = (startIndex + i) % contour.length;
+        const pt = contour[idx];
+
+        if (!pt.type) {
+          // 제어점인 경우: Paper.js는 다음 점의 handleIn으로 이를 처리하거나 
+          // segment의 handleOut으로 처리할 수 있습니다.
+          // 여기서는 segments 배열에 직접 접근하여 처리하는 방식이 정확합니다.
+        } else {
+          // On-curve 점 추가
+          const segment = new paper.Segment(new paper.Point(pt.x, pt.y));
+          
+          // 이전 점들이 제어점이었다면 handle 설정 (곡선 처리)
+          const prevIdx1 = (idx - 1 + contour.length) % contour.length;
+          const prevIdx2 = (idx - 2 + contour.length) % contour.length;
+
+          if (!contour[prevIdx1].type) {
+            if (!contour[prevIdx2].type) {
+              // --- 제어점 2개 (3차 베지어) ---
+              const cp2 = contour[prevIdx1]; // 현재 점(pt)과 연결된 제어점
+              const cp1 = contour[prevIdx2]; // 이전 점과 연결된 제어점
+
+              // 1. 현재 점의 handleIn 설정 (상대 좌표)
+              segment.handleIn = new paper.Point(cp2.x - pt.x, cp2.y - pt.y);
+
+              // 2. 이전 점(lastSegment)의 handleOut 설정 (상대 좌표)
+              if (path.lastSegment) {
+                const prevPt = path.lastSegment.point;
+                path.lastSegment.handleOut = new paper.Point(cp1.x - prevPt.x, cp1.y - prevPt.y);
+              }
+            } else {
+              // --- 제어점 1개 (2차 베지어) ---
+              const cp = contour[prevIdx1];
+
+              // 2차를 3차로 근사하기 위해 2/3 지점으로 핸들 분산 (선택 사항이지만 권장)
+              segment.handleIn = new paper.Point((2/3) * (cp.x - pt.x), (2/3) * (cp.y - pt.y));
+              
+              if (path.lastSegment) {
+                const prevPt = path.lastSegment.point;
+                path.lastSegment.handleOut = new paper.Point((2/3) * (cp.x - prevPt.x), (2/3) * (cp.y - prevPt.y));
+              }
+            }
+          }
+
+          // 💡 마지막 점이 시작점과 좌표가 같다면 중복 추가하지 않고 핸들만 옮겨줌
+          if (i === contour.length) {
+            path.firstSegment.handleIn = segment.handleIn;
+          } else {
+            path.add(segment);
+          }
+        }
+      }
+
+      // 그룹을 만들어 한꺼번에 변환 적용
+      const group = new paper.Group([path]);
+      
+      // 1) Y축 뒤집기 (폰트 좌표계 -> 캔버스 좌표계)
+      group.scale(1, -1, new paper.Point(0, 0));
+
+      // 그룹 해제 
+      group.parent.insertChildren(group.index,  group.removeChildren());
+      group.remove();
+    });
+  };
 
   useLayoutEffect(() => {
     if (!canvasRef.current) return;
@@ -283,84 +363,7 @@ export default function GlyphEditor({ glyphData, onGlyphDataChange, key, zoomAct
     updateAdvanceWidthLine();
 
     // Draw glyph data
-    glyphData.outlineData.contours.forEach((ct: any) => {
-      const contour = ct.points
-
-      const path = new paper.Path();
-      path.strokeColor = new paper.Color('black');
-      path.strokeWidth = 2;
-      path.closed = true;
-
-      // 3. 포인트 추가 로직 (순환 구조 고려)
-      // 시작점이 제어점일 경우를 대비해 첫 On-curve 점을 찾음
-      const startIndex = contour.findIndex((p: any) => p.type === 'line' || p.type === 'curve');
-      if (startIndex === -1) return;
-
-      for (let i = 0; i <= contour.length; i++) { 
-        const idx = (startIndex + i) % contour.length;
-        const pt = contour[idx];
-
-        if (!pt.type) {
-          // 제어점인 경우: Paper.js는 다음 점의 handleIn으로 이를 처리하거나 
-          // segment의 handleOut으로 처리할 수 있습니다.
-          // 여기서는 segments 배열에 직접 접근하여 처리하는 방식이 정확합니다.
-        } else {
-          // On-curve 점 추가
-          const segment = new paper.Segment(new paper.Point(pt.x, pt.y));
-          
-          // 이전 점들이 제어점이었다면 handle 설정 (곡선 처리)
-          const prevIdx1 = (idx - 1 + contour.length) % contour.length;
-          const prevIdx2 = (idx - 2 + contour.length) % contour.length;
-
-          if (!contour[prevIdx1].type) {
-            if (!contour[prevIdx2].type) {
-              // --- 제어점 2개 (3차 베지어) ---
-              const cp2 = contour[prevIdx1]; // 현재 점(pt)과 연결된 제어점
-              const cp1 = contour[prevIdx2]; // 이전 점과 연결된 제어점
-
-              // 1. 현재 점의 handleIn 설정 (상대 좌표)
-              segment.handleIn = new paper.Point(cp2.x - pt.x, cp2.y - pt.y);
-
-              // 2. 이전 점(lastSegment)의 handleOut 설정 (상대 좌표)
-              if (path.lastSegment) {
-                const prevPt = path.lastSegment.point;
-                path.lastSegment.handleOut = new paper.Point(cp1.x - prevPt.x, cp1.y - prevPt.y);
-              }
-            } else {
-              // --- 제어점 1개 (2차 베지어) ---
-              const cp = contour[prevIdx1];
-
-              // 2차를 3차로 근사하기 위해 2/3 지점으로 핸들 분산 (선택 사항이지만 권장)
-              segment.handleIn = new paper.Point((2/3) * (cp.x - pt.x), (2/3) * (cp.y - pt.y));
-              
-              if (path.lastSegment) {
-                const prevPt = path.lastSegment.point;
-                path.lastSegment.handleOut = new paper.Point((2/3) * (cp.x - prevPt.x), (2/3) * (cp.y - prevPt.y));
-              }
-            }
-          }
-
-          // 💡 마지막 점이 시작점과 좌표가 같다면 중복 추가하지 않고 핸들만 옮겨줌
-          if (i === contour.length) {
-            path.firstSegment.handleIn = segment.handleIn;
-          } else {
-            path.add(segment);
-          }
-        }
-      }
-
-      // path.fullySelected = true;
-
-      // 그룹을 만들어 한꺼번에 변환 적용
-      const group = new paper.Group([path]);
-      
-      // 1) Y축 뒤집기 (폰트 좌표계 -> 캔버스 좌표계)
-      group.scale(1, -1, new paper.Point(0, 0));
-
-      // 그룹 해제 
-      group.parent.insertChildren(group.index,  group.removeChildren());
-      group.remove();
-    })
+    drawGlyph(glyphData);
 
     const createHighlight = (point: paper.Point, isHandle: boolean = false) => {
       const circle = new paper.Path.Circle({
