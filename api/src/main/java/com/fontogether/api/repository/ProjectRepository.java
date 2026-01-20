@@ -112,6 +112,12 @@ public class ProjectRepository {
         
         jdbcTemplate.update(sql, data, projectId);
     }
+
+    public void updateTimestamp(Long projectId) {
+        String sql = "UPDATE font_project SET updated_at = NOW() WHERE project_id = ?";
+        jdbcTemplate.update(sql, projectId);
+    }
+
     // --- Collaboration Methods ---
 
     public List<Collaborator> findCollaborators(Long projectId) {

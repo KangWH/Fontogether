@@ -14,6 +14,7 @@ import java.util.Optional;
 public class GlyphService {
 
     private final GlyphRepository glyphRepository;
+    private final com.fontogether.api.repository.ProjectRepository projectRepository;
 
     /**
      * 글리프 저장 (Upsert 로직)
@@ -49,6 +50,9 @@ public class GlyphService {
             
             glyphRepository.save(newGlyph);
         }
+        
+        // 3. 프로젝트 UpdatedAt 갱신
+        projectRepository.updateTimestamp(projectId);
     }
 
     /**
@@ -72,5 +76,29 @@ public class GlyphService {
      */
     public List<Glyph> getAllGlyphs(Long projectId) {
         return glyphRepository.findAllByProjectId(projectId);
+    }
+
+    @Transactional
+    public void deleteGlyph(Long projectId, String glyphName) {
+        Glyph glossary = glyphRepository.findByProjectAndName(projectId, glyphName)
+                .orElseThrow(() -> new IllegalArgumentException("Glyph not found: " + glyphName));
+        
+        glyphRepository.delete(glossary);
+        projectRepository.updateTimestamp(projectId);
+    }
+
+    @Transactional
+    public void renameGlyph(Long projectId, String oldName, String newName) {
+        Glyph glyph = glyphRepository.findByProjectAndName(projectId, oldName)
+                .orElseThrow(() -> new IllegalArgumentException("Glyph not found: " + oldName));
+        
+        Optional<Glyph> target = glyphRepository.findByProjectAndName(projectId, newName);
+        if (target.isPresent()) {
+            throw new IllegalArgumentException("Glyph name already exists: " + newName);
+        }
+
+        glyph.setGlyphName(newName);
+        glyphRepository.update(glyph);
+        projectRepository.updateTimestamp(projectId);
     }
 }

@@ -296,7 +296,24 @@ For testing and interactive documentation, please visit **Swagger UI**:
   }
   ```
 
-### 2. User Presence (접속 상태)
+  ```
+
+### 2. Glyph Management (관리)
+- **Send To**: `/app/glyph/action`
+- **Subscribe**: `/topic/project/{projectId}/glyph/action`
+- **Payload**:
+  ```json
+  {
+    "projectId": 1,
+    "action": "RENAME", // ADD, DELETE, REORDER, MOVE
+    "glyphName": "Target",
+    "newName": "NewName", // RENAME
+    "newOrder": ["A", "B"], // REORDER
+    "toIndex": 5 // MOVE
+  }
+  ```
+
+### 3. User Presence (접속 상태)
 - **Subscribe**: `/topic/project/{projectId}/presence`
 
 #### A. 입장 (Join)

@@ -3,6 +3,7 @@ package com.fontogether.api.service;
 import com.fontogether.api.model.domain.Project;
 import com.fontogether.api.repository.ProjectRepository;
 import com.fontogether.api.repository.UserRepository;
+import com.fontogether.api.service.GlyphService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ public class CollaborationService {
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final GlyphService glyphService;
 
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
@@ -133,6 +135,7 @@ public class CollaborationService {
             case "KERNING" -> "kerning";
             case "FEATURES" -> "features";
             case "LAYER_CONFIG" -> "layer_config";
+            case "LIB" -> "lib";
             default -> throw new IllegalArgumentException("Unknown update type: " + message.getUpdateType());
         };
 
@@ -140,6 +143,102 @@ public class CollaborationService {
         projectRepository.updateProjectDetail(message.getProjectId(), column, message.getData());
 
         // 3. Broadcast to all clients (including sender, or exclude sender if optimized)
+        String destination = "/topic/project/" + message.getProjectId() + "/update/details";
+        messagingTemplate.convertAndSend(destination, message);
+    }
+    
+    @Transactional
+    public void handleGlyphAction(com.fontogether.api.model.dto.GlyphActionMessage message) {
+        Long projectId = message.getProjectId();
+        
+        switch (message.getAction()) {
+            case RENAME:
+                glyphService.renameGlyph(projectId, message.getGlyphName(), message.getNewName());
+                updateGlyphOrderInLib(projectId, order -> {
+                   int idx = order.indexOf(message.getGlyphName());
+                   if (idx != -1) {
+                       order.set(idx, message.getNewName());
+                   }
+                });
+                break;
+                
+            case DELETE:
+                glyphService.deleteGlyph(projectId, message.getGlyphName());
+                updateGlyphOrderInLib(projectId, order -> order.remove(message.getGlyphName()));
+                break;
+                
+            case ADD:
+                // Create an empty glyph
+                glyphService.saveGlyph(projectId, message.getGlyphName(), "{\"contours\":[]}", 500);
+                updateGlyphOrderInLib(projectId, order -> {
+                    if (!order.contains(message.getGlyphName())) {
+                        order.add(message.getGlyphName());
+                    }
+                });
+                break;
+                
+            case REORDER:
+                updateGlyphOrderInLib(projectId, order -> {
+                    order.clear();
+                    order.addAll(message.getNewOrder());
+                });
+                break;
+                
+            case MOVE:
+                updateGlyphOrderInLib(projectId, order -> {
+                    // 1. Remove if exists
+                    order.remove(message.getGlyphName());
+                    
+                    // 2. Insert at index
+                    int idx = message.getToIndex();
+                    if (idx < 0) idx = 0;
+                    if (idx > order.size()) idx = order.size();
+                    
+                    order.add(idx, message.getGlyphName());
+                });
+                break;
+        }
+
+        // Broadcast Action
+        String destination = "/topic/project/" + projectId + "/glyph/action";
+        messagingTemplate.convertAndSend(destination, message);
+    }
+
+    private void updateGlyphOrderInLib(Long projectId, java.util.function.Consumer<List<String>> modifier) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+        
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            // Parse lib JSON
+            java.util.Map<String, Object> libMap = new java.util.HashMap<>();
+            if (project.getLib() != null && !project.getLib().isEmpty()) {
+                libMap = mapper.readValue(project.getLib(), new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+            }
+            
+            // Get or Create public.glyphOrder
+            List<String> glyphOrder = (List<String>) libMap.computeIfAbsent("public.glyphOrder", k -> new java.util.ArrayList<String>());
+            
+            // Apply modification
+            modifier.accept(glyphOrder);
+            
+            // Save back
+            String newLibJson = mapper.writeValueAsString(libMap);
+            projectRepository.updateProjectDetail(projectId, "lib", newLibJson);
+            
+            // Also broadcast LIB update so clients sync their lib state
+            com.fontogether.api.model.dto.ProjectDetailUpdateMessage libUpdate = new com.fontogether.api.model.dto.ProjectDetailUpdateMessage();
+            libUpdate.setProjectId(projectId);
+            libUpdate.setUpdateType("LIB");
+            libUpdate.setData(newLibJson);
+            broadcastProjectDetailUpdate(libUpdate);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to update glyph order in lib", e);
+        }
+    }
+    
+    private void broadcastProjectDetailUpdate(com.fontogether.api.model.dto.ProjectDetailUpdateMessage message) {
         String destination = "/topic/project/" + message.getProjectId() + "/update/details";
         messagingTemplate.convertAndSend(destination, message);
     }

@@ -120,4 +120,14 @@ public class WebSocketController {
         log.info("Project detail update: projectId={}, type={}", message.getProjectId(), message.getUpdateType());
         collaborationService.persistProjectDetail(message);
     }
+
+    /**
+     * 글리프 생성, 삭제, 이름변경, 순서변경 (관리 작업)
+     * /app/glyph/action
+     */
+    @MessageMapping("/glyph/action")
+    public void handleGlyphAction(@Payload com.fontogether.api.model.dto.GlyphActionMessage message) {
+        log.info("Glyph action: projectId={}, action={}, glyph={}", message.getProjectId(), message.getAction(), message.getGlyphName());
+        collaborationService.handleGlyphAction(message);
+    }
 }

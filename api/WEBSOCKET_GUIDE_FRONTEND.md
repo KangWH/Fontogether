@@ -144,3 +144,64 @@ client.publish({
     })
 });
 ```
+
+### D. 글리프 관리 (추가, 삭제, 이름변경, 순서변경)
+새로운 `/app/glyph/action` 엔드포인트를 사용합니다.
+
+```javascript
+// 1. 이름 변경 (RENAME)
+client.publish({
+    destination: '/app/glyph/action',
+    body: JSON.stringify({
+        projectId: 1,
+        action: 'RENAME',
+        glyphName: 'oldName',
+        newName: 'newName'
+    })
+});
+
+// 2. 삭제 (DELETE)
+client.publish({
+    destination: '/app/glyph/action',
+    body: JSON.stringify({
+        projectId: 1,
+        action: 'DELETE',
+        glyphName: 'targetName'
+    })
+});
+
+// 3. 추가 (ADD)
+client.publish({
+    destination: '/app/glyph/action',
+    body: JSON.stringify({
+        projectId: 1,
+        action: 'ADD',
+        glyphName: 'NewGlyph' // 빈 글리프 생성됨
+    })
+});
+
+// 4. 순서 변경 (REORDER - 전체 리스트 교체)
+client.publish({
+    destination: '/app/glyph/action',
+    body: JSON.stringify({
+        projectId: 1,
+        action: 'REORDER',
+        newOrder: ['A', 'B', 'NewGlyph', 'C'] // 전체 이름 리스트
+    })
+});
+
+// 5. 순서 이동 (MOVE - 단일 글리프 이동)
+client.publish({
+    destination: '/app/glyph/action',
+    body: JSON.stringify({
+        projectId: 1,
+        action: 'MOVE',
+        glyphName: 'A',
+        toIndex: 1 // 0-based index
+    })
+});
+```
+
+**참고**: 위 액션 수행 시 자동으로 다음 토픽으로 변경 사항이 전파됩니다:
+1. `/topic/project/{id}/glyph/action` (액션 자체 알림)
+2. `/topic/project/{id}/update/details` (lib/glyphOrder 변경 알림)

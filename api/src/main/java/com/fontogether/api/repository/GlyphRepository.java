@@ -93,11 +93,12 @@ public class GlyphRepository {
     public void update(Glyph glyph) {
         String sql = """
                 UPDATE glyph 
-                SET advance_width = ?, advance_height = ?, outline_data = ?::jsonb, properties = ?::jsonb, last_modified_by = ?, updated_at = NOW()
+                SET glyph_name = ?, advance_width = ?, advance_height = ?, outline_data = ?::jsonb, properties = ?::jsonb, last_modified_by = ?, updated_at = NOW()
                 WHERE glyph_uuid = ?
                 """;
         
         jdbcTemplate.update(sql,
+                glyph.getGlyphName(),
                 glyph.getAdvanceWidth(),
                 glyph.getAdvanceHeight(),
                 glyph.getOutlineData(),
@@ -105,5 +106,11 @@ public class GlyphRepository {
                 glyph.getLastModifiedBy(),
                 glyph.getGlyphUuid()
         );
+    }
+    
+    // 5. 삭제
+    public void delete(Glyph glyph) {
+        String sql = "DELETE FROM glyph WHERE glyph_uuid = ?";
+        jdbcTemplate.update(sql, glyph.getGlyphUuid());
     }
 }
