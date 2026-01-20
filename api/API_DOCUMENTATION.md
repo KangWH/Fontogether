@@ -67,15 +67,24 @@ For testing and interactive documentation, please visit **Swagger UI**:
 ### 4. 사용자 정보 수정
 - **URL**: `PUT /api/users/{userId}`
 - **Request Body**:
-  ```json
   {
-      "nickname": "New Nickname",
-      "password": "newpassword123" 
+      "nickname": "New Nickname"
   }
   ```
 - **Response**: `200 OK`
 
-### 5. 회원 탈퇴
+### 5. 비밀번호 변경
+- **URL**: `POST /api/users/{userId}/password`
+- **Request Body**:
+  ```json
+  {
+      "oldPassword": "currentPassword",
+      "newPassword": "newPassword123"
+  }
+  ```
+- **Response**: `200 OK`
+
+### 6. 회원 탈퇴
 - **URL**: `DELETE /api/users/{userId}`
 - **Response**: `200 OK`
 

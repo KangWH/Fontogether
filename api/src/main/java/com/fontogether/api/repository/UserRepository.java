@@ -82,6 +82,11 @@ public class UserRepository {
         jdbcTemplate.update(sql, user.getNickname(), user.getPassword(), user.getId());
     }
 
+    public void updatePassword(Long userId, String newEncryptedPassword) {
+        String sql = "UPDATE users SET password = ? WHERE id = ?";
+        jdbcTemplate.update(sql, newEncryptedPassword, userId);
+    }
+
     public void deleteById(Long id) {
         String sql = "DELETE FROM users WHERE id = ?";
         jdbcTemplate.update(sql, id);

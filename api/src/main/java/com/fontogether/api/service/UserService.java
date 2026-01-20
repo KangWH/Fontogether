@@ -71,4 +71,20 @@ public class UserService {
     public void deleteUser(Long userId) {
         userRepository.deleteById(userId);
     }
+    
+    @Transactional
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        User user = getUser(userId);
+        
+        // 1. Verify old password
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Incorrect old password");
+        }
+        
+        // 2. Hash new password
+        String newEncryptedPassword = passwordEncoder.encode(newPassword);
+        
+        // 3. Update DB
+        userRepository.updatePassword(userId, newEncryptedPassword);
+    }
 }

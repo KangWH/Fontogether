@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class User {
     private Long id;
     private String email;
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
     private String nickname;
     private String provider;   // "local" only

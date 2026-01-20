@@ -71,7 +71,7 @@ public class UserController {
     @org.springframework.web.bind.annotation.PutMapping("/{userId}")
     public ResponseEntity<?> updateUser(@PathVariable("userId") Long userId, @RequestBody UpdateRequest request) {
         try {
-            userService.updateUser(userId, request.getNickname(), request.getPassword());
+            userService.updateUser(userId, request.getNickname(), null); // Password update moved to dedicated endpoint
             return ResponseEntity.ok("User updated successfully");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Update Error: " + e.getMessage());
@@ -91,6 +91,22 @@ public class UserController {
     @Data
     public static class UpdateRequest {
         private String nickname;
-        private String password;
+        // private String password; // Removed password from generic update, explicit endpoint preferred
+    }
+    
+    @PostMapping("/{userId}/password")
+    public ResponseEntity<?> changePassword(@PathVariable("userId") Long userId, @RequestBody PasswordChangeRequest request) {
+        try {
+            userService.changePassword(userId, request.getOldPassword(), request.getNewPassword());
+            return ResponseEntity.ok("Password changed successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Password Change Error: " + e.getMessage());
+        }
+    }
+
+    @Data
+    public static class PasswordChangeRequest {
+        private String oldPassword;
+        private String newPassword;
     }
 }
