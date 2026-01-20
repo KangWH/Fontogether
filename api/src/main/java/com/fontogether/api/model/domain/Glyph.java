@@ -19,6 +19,7 @@ public class Glyph {
     private java.util.List<String> unicodes;
     private Integer advanceWidth;
     private Integer advanceHeight;
+    private Integer sortOrder;
     private String outlineData;      // JSON 데이터 (베지에 곡선 정보)
     private String properties;       // JSONB properties
     private String lastModifiedBy;

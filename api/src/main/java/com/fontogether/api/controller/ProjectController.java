@@ -73,6 +73,7 @@ public class ProjectController {
     }
     
     @org.springframework.web.bind.annotation.GetMapping("/{projectId}/export")
+    @SuppressWarnings("null")
     public ResponseEntity<?> exportProject(@org.springframework.web.bind.annotation.PathVariable("projectId") Long projectId) {
         try {
             byte[] zipData = projectService.exportProject(projectId);

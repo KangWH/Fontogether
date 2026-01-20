@@ -60,6 +60,11 @@ public class WebSocketController {
     @MessageMapping("/project/join")
     public void handleProjectJoin(@Payload UserPresenceMessage message, SimpMessageHeaderAccessor headerAccessor) {
         log.info("User {} joining project {}", message.getUserId(), message.getProjectId());
+        
+        // Debug Headers
+        log.info("Join Headers: {}", headerAccessor.getMessageHeaders());
+        log.info("Join Session ID: {}", headerAccessor.getSessionId());
+
         collaborationService.userJoined(
                 message.getProjectId(),
                 message.getUserId(),
@@ -78,8 +83,7 @@ public class WebSocketController {
         collaborationService.userLeft(
                 message.getProjectId(),
                 message.getUserId(),
-                message.getNickname(),
-                headerAccessor.getSessionId()
+                message.getNickname()
         );
     }
 

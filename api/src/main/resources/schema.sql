@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS glyph (
     
     -- 6. 시스템 관리용 (협업용)
     last_modified_by VARCHAR(255),
+    sort_order       INTEGER,         -- glyph sorting order
     updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     -- 외래키 및 유니크 제약조건

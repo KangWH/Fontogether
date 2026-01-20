@@ -63,18 +63,36 @@ public class UfoExportService {
             zos.closeEntry();
 
             // 8. Glyphs
+            // 8. Glyphs & contents.plist
+            StringBuilder contentsPlistBuilder = new StringBuilder();
+            contentsPlistBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+            contentsPlistBuilder.append("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n");
+            contentsPlistBuilder.append("<plist version=\"1.0\">\n");
+            contentsPlistBuilder.append("<dict>\n");
+
+            java.util.Set<String> existingFileNames = new java.util.HashSet<>();
+
             for (Glyph glyph : glyphs) {
-                // filename suggestion: A.glif or uniXXXX.glif. 
-                // Ideally use glyph name from lib or standard convention.
-                // Assuming glyph.getGlyphName() is filename-safe or roughly safe.
-                String fileName = glyph.getGlyphName(); 
-                // Basic sanitation for filename
-                fileName = fileName.replaceAll("[/\\\\]", "_"); 
+                // UFO 3 Convention: Glyph Name -> File Name
+                String fileName = glyphNameToFileName(glyph.getGlyphName(), existingFileNames) + ".glif";
+                existingFileNames.add(fileName.toLowerCase()); // Track lower case for collision check
+
+                // Add to contents.plist order
+                contentsPlistBuilder.append("  <key>").append(glyph.getGlyphName()).append("</key>\n");
+                contentsPlistBuilder.append("  <string>").append(fileName).append("</string>\n");
                 
-                zos.putNextEntry(new ZipEntry(rootDir + "glyphs/" + fileName + ".glif"));
+                zos.putNextEntry(new ZipEntry(rootDir + "glyphs/" + fileName));
                 zos.write(glyphToGlif(glyph).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
             }
+            
+            contentsPlistBuilder.append("</dict>\n");
+            contentsPlistBuilder.append("</plist>");
+            
+            // Write contents.plist
+            zos.putNextEntry(new ZipEntry(rootDir + "glyphs/contents.plist"));
+            zos.write(contentsPlistBuilder.toString().getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
 
             zos.finish();
             return baos.toByteArray();
@@ -82,6 +100,81 @@ public class UfoExportService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to export UFO zip", e);
         }
+    }
+    
+    // UFO 3 Convention Implementation
+    private String glyphNameToFileName(String glyphName, java.util.Set<String> existingOriginals) {
+        // 1. Replace illegal characters
+        // " * + / : < > ? [ \ ] | \0 and delete (U+007F) and controls (0-31)
+        StringBuilder sb = new StringBuilder();
+        for (char c : glyphName.toCharArray()) {
+            if (c == '"' || c == '*' || c == '+' || c == '/' || c == ':' || c == '<' || c == '>' || 
+                c == '?' || c == '[' || c == '\\' || c == ']' || c == '|' || c < 32 || c == 127) {
+                sb.append('_');
+            } else if (Character.isUpperCase(c)) {
+                sb.append(c).append('_');
+            } else {
+                sb.append(c);
+            }
+        }
+        String name = sb.toString();
+
+        // 2. Initial period check
+        if (name.startsWith(".")) {
+            name = "_" + name.substring(1);
+        }
+
+        // 3. Reserved Windows filenames (check parts)
+        String[] parts = name.split("\\.");
+        List<String> newParts = new java.util.ArrayList<>();
+        java.util.Set<String> reserved = java.util.Set.of(
+            "con", "prn", "aux", "clock$", "nul", 
+            "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+            "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"
+        );
+        for (String part : parts) {
+            if (reserved.contains(part.toLowerCase())) {
+                newParts.add("_" + part);
+            } else {
+                newParts.add(part);
+            }
+        }
+        name = String.join(".", newParts);
+
+        // 4. Collision handling
+        // We compare against existing lower-cased file names + .glif (since existingOriginals stores full filenames)
+        // Adjust existingOriginals usage: passed Set contains lower-cased "filename.glif" strings.
+        
+        String candidate = name;
+        // Truncate to 255 (minus extension length 5 for .glif) -> 250
+        if (candidate.length() > 250) candidate = candidate.substring(0, 250);
+
+        String candidateFull = candidate + ".glif";
+        
+        if (!existingOriginals.contains(candidateFull.toLowerCase())) {
+            return candidate;
+        }
+
+        // Handle clash 1 (append 15 digit number)
+        // If clashing, we need to make space. Max length 255. 
+        // 255 - 5 (.glif) - 15 (suffix) = 235 chars max for prefix.
+        
+        String prefix = candidate;
+        if (prefix.length() > 235) prefix = prefix.substring(0, 235);
+        
+        long counter = 1;
+        while (counter < 1000000000000000L) {
+             String suffix = String.format("%015d", counter);
+             String checkName = prefix + suffix;
+             String checkFull = checkName + ".glif";
+             if (!existingOriginals.contains(checkFull.toLowerCase())) {
+                 return checkName;
+             }
+             counter++;
+        }
+        
+        // Handle clash 2 (fallback, just numbers? Rare case)
+        return candidate + "_" + System.currentTimeMillis(); // Fallback
     }
 
     private String createMetaInfo() {
@@ -153,7 +246,12 @@ public class UfoExportService {
             }
             sb.append("</array>\n");
         } else if (node.isTextual()) {
-            sb.append("<string>").append(node.asText()).append("</string>\n");
+            String text = node.asText();
+            if (text.startsWith("DATA:")) {
+                sb.append("<data>").append(text.substring(5)).append("</data>\n");
+            } else {
+                sb.append("<string>").append(text).append("</string>\n");
+            }
         } else if (node.isInt()) {
             sb.append("<integer>").append(node.asInt()).append("</integer>\n");
         } else if (node.isFloatingPointNumber()) {
@@ -183,7 +281,11 @@ public class UfoExportService {
             // 2. Classes
             if (root.has("classes")) {
                 for (JsonNode cls : root.get("classes")) {
-                    sb.append("@").append(cls.get("name").asText()).append(" = [")
+                    String className = cls.get("name").asText();
+                    if (!className.startsWith("@")) {
+                        sb.append("@");
+                    }
+                    sb.append(className).append(" = [")
                       .append(cls.get("code").asText()).append("];\n");
                 }
             }
@@ -253,8 +355,8 @@ public class UfoExportService {
                     sb.append("    <contour>\n");
                     if (contour.has("points")) {
                         for (JsonNode p : contour.get("points")) {
-                            sb.append("      <point x=\"").append(p.get("x").asDouble())
-                              .append("\" y=\"").append(p.get("y").asDouble())
+                            sb.append("      <point x=\"").append((int) p.get("x").asDouble())
+                              .append("\" y=\"").append((int) p.get("y").asDouble())
                               .append("\" type=\"").append(p.has("type") ? p.get("type").asText() : "offcurve");
                             
                             if (p.has("smooth") && p.get("smooth").asBoolean()) {

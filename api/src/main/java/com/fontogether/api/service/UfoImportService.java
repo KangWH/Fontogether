@@ -68,7 +68,26 @@ public class UfoImportService {
         String rootPrefix = findRootPrefix(fileContentMap.keySet());
         
         // metainfo.plist
-        project.setMetaInfo(parsePlistToJson(fileContentMap.get(rootPrefix + "metainfo.plist")));
+        String metaInfoJson = parsePlistToJson(fileContentMap.get(rootPrefix + "metainfo.plist"));
+        try {
+            ObjectNode metaInfo = (ObjectNode) objectMapper.readTree(metaInfoJson);
+            if (metaInfo.has("formatVersion")) {
+                int formatVersion = metaInfo.get("formatVersion").asInt();
+                if (formatVersion != 3) {
+                     throw new IllegalArgumentException("Unsupported UFO format version: " + formatVersion + ". Only version 3 is supported.");
+                }
+            } else {
+                 throw new IllegalArgumentException("Invalid UFO: metainfo.plist missing formatVersion");
+            }
+        } catch (IllegalArgumentException e) {
+            throw e; // Rethrow expected errors
+        } catch (Exception e) {
+            log.warn("Failed to check formatVersion", e);
+            // Optionally enforce strict check instead of warn
+             throw new IllegalArgumentException("Invalid metainfo.plist: " + e.getMessage());
+        }
+        
+        project.setMetaInfo(metaInfoJson);
         
         // fontinfo.plist
         String fontInfoJson = parsePlistToJson(fileContentMap.get(rootPrefix + "fontinfo.plist"));
@@ -114,19 +133,64 @@ public class UfoImportService {
             log.warn("Failed to parse unitsPerEm from fontinfo", e);
         }
 
-        // Assume default layer "glyphs" folder for now, or parse layercontents properly
-        // For MVP, we scan all .glif files in "glyphs/" directory
-        for (String path : fileContentMap.keySet()) {
+        // Try to read contents.plist to determind glyph order and mapping
+        String contentsPlistPath = rootPrefix + "glyphs/contents.plist";
+        byte[] contentsPlistBytes = fileContentMap.get(contentsPlistPath);
+
+        if (contentsPlistBytes != null) {
+            // Drive from contents.plist (Correct Order)
+            String contentsJson = parsePlistToJson(contentsPlistBytes);
+            try {
+                 ObjectNode contents = (ObjectNode) objectMapper.readTree(contentsJson);
+                 int sortCounter = 0;
+                 
+                 // Iterator returns fields in insertion order (which mirrors XML order)
+                 Iterator<Map.Entry<String, com.fasterxml.jackson.databind.JsonNode>> fields = contents.fields();
+                 while (fields.hasNext()) {
+                     Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> field = fields.next();
+                     // String glyphName = field.getKey(); // Unused
+                     String fileName = field.getValue().asText();
+                     
+                     String glifPath = rootPrefix + "glyphs/" + fileName;
+                     byte[] glifBytes = fileContentMap.get(glifPath);
+                     
+                     if (glifBytes != null) {
+                         Glyph glyph = parseGlif(glifBytes, unitsPerEm);
+                         if (glyph != null) {
+                             // Force name from contents.plist if mismatch? Usually they match.
+                             // But let's trust the glif content or overrides? 
+                             // Valid UFO: glif also has name.
+                             
+                             glyph.setLayerName("public.default");
+                             glyph.setSortOrder(sortCounter++); 
+                             glyphs.add(glyph);
+                         }
+                     }
+                 }
+            } catch (Exception e) {
+                log.error("Failed to parse contents.plist JSON", e);
+                // Fallback to file scanning if valid parsing fails?
+                scanAllGlifFiles(fileContentMap, rootPrefix, unitsPerEm, glyphs);
+            }
+        } else {
+            // Fallback: Scan all .glif files (Random Order)
+            scanAllGlifFiles(fileContentMap, rootPrefix, unitsPerEm, glyphs);
+        }
+
+        return new UfoData(project, glyphs);
+    }
+
+    private void scanAllGlifFiles(Map<String, byte[]> fileContentMap, String rootPrefix, int unitsPerEm, List<Glyph> glyphs) {
+         for (String path : fileContentMap.keySet()) {
             if (path.startsWith(rootPrefix + "glyphs/") && path.endsWith(".glif")) {
                 Glyph glyph = parseGlif(fileContentMap.get(path), unitsPerEm);
                 if (glyph != null) {
                     glyph.setLayerName("public.default"); // Default layer
+                    // No sortOrder defined
                     glyphs.add(glyph);
                 }
             }
         }
-
-        return new UfoData(project, glyphs);
     }
 
     private String findRootPrefix(Set<String> paths) {
@@ -216,6 +280,7 @@ public class UfoImportService {
                     case "real" -> node.put(currentKey, Double.parseDouble(child.getTextContent()));
                     case "true" -> node.put(currentKey, true);
                     case "false" -> node.put(currentKey, false);
+                    case "data" -> node.put(currentKey, "DATA:" + child.getTextContent().trim()); // Prefix to identify on export
                     case "array" -> node.set(currentKey, convertArrayToJson((Element) child));
                     case "dict" -> node.set(currentKey, convertDictToJson((Element) child));
                 }
@@ -431,11 +496,6 @@ public class UfoImportService {
             ObjectNode node = objectMapper.createObjectNode();
             node.put("name", lookupMatcher.group(1));
             node.put("code", lookupMatcher.group(2).trim());
-            
-            // Lookups can be inside features too, but we are only catching top-level ones here 
-            // because strict regex replacement removed features already. 
-            // Wait, if a lookup is INSIDE a feature, it was removed in step 2. 
-            // This is correct behavior for "Standalone Lookups".
             lookupsArray.add(node);
         }
         remaining = lookupMatcher.replaceAll("");
@@ -455,11 +515,6 @@ public class UfoImportService {
         java.util.regex.Pattern langPattern = java.util.regex.Pattern.compile("languagesystem\\s+(\\w+)\\s+(\\w+)\\s*;", java.util.regex.Pattern.MULTILINE);
         java.util.regex.Matcher langMatcher = langPattern.matcher(remaining);
         while (langMatcher.find()) {
-            String script = langMatcher.group(1);
-            String lang = langMatcher.group(2);
-            // Reconstruct full string "languagesystem DFLT dflt;" or object? 
-            // User requested separating list. Let's return the full line string for simplicity or structured object.
-            // Let's use string for now, user can parse or display as list.
             languagesystems.add(langMatcher.group(0).trim());
         }
         remaining = langMatcher.replaceAll("");

@@ -3,7 +3,7 @@ package com.fontogether.api.service;
 import com.fontogether.api.model.domain.Project;
 import com.fontogether.api.repository.ProjectRepository;
 import com.fontogether.api.repository.UserRepository;
-import com.fontogether.api.service.GlyphService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,32 +86,59 @@ public class CollaborationService {
 
     private record SessionInfo(Long projectId, Long userId, String nickname) {}
 
+    @org.springframework.context.event.EventListener
+    public void handleSessionConnect(org.springframework.web.socket.messaging.SessionConnectEvent event) {
+        org.springframework.messaging.simp.stomp.StompHeaderAccessor items = org.springframework.messaging.simp.stomp.StompHeaderAccessor.wrap(event.getMessage());
+        org.slf4j.LoggerFactory.getLogger(CollaborationService.class).debug(
+            "Session Connected Event: sid={}", items.getSessionId()
+        );
+    }
+
     public void userJoined(Long projectId, Long userId, String nickname, String sessionId) {
         // Track session
         sessionMap.put(sessionId, new SessionInfo(projectId, userId, nickname));
         
-        // Track project sessions
-        projectSessions.computeIfAbsent(projectId, k -> java.util.concurrent.ConcurrentHashMap.newKeySet()).add(sessionId);
+        // Track project sessions atomically and capture count
+        java.util.concurrent.atomic.AtomicInteger activeCount = new java.util.concurrent.atomic.AtomicInteger(0);
+        projectSessions.compute(projectId, (key, sessions) -> {
+            if (sessions == null) {
+                sessions = java.util.concurrent.ConcurrentHashMap.newKeySet();
+            }
+            sessions.add(sessionId);
+            activeCount.set(countUniqueUsers(sessions));
+            return sessions;
+        });
+
+        // Debug Log
+        // Debug Log
+        org.slf4j.LoggerFactory.getLogger(CollaborationService.class).debug(
+            "User Joined: pid={}, uid={}, sid={}, activeCount={}", 
+            projectId, userId, sessionId, activeCount.get()
+        );
 
         // Broadcast to /topic/project/{projectId}/presence
-        broadcastPresence(projectId, userId, nickname, "JOIN");
+        broadcastPresence(projectId, userId, nickname, "JOIN", activeCount.get());
     }
 
-    public void userLeft(Long projectId, Long userId, String nickname, String sessionId) {
-        // Remove session
-        if (sessionId != null) {
-            sessionMap.remove(sessionId);
-            
-            java.util.Set<String> sessions = projectSessions.get(projectId);
-            if (sessions != null) {
-                sessions.remove(sessionId);
-                if (sessions.isEmpty()) {
-                    projectSessions.remove(projectId);
-                }
-            }
+    // @org.springframework.scheduling.annotation.Scheduled(fixedRate = 30000)
+    public void monitorSessionIntegrity() {
+        int sessionMapSize = sessionMap.size();
+        int projectSessionsSize = projectSessions.values().stream().mapToInt(java.util.Set::size).sum();
+        
+        if (sessionMapSize != projectSessionsSize) {
+             org.slf4j.LoggerFactory.getLogger(CollaborationService.class).warn(
+                "Session Count Mismatch detected! sessionMapSize={}, projectSessionsSize={}", 
+                sessionMapSize, projectSessionsSize
+            );
+        } else {
+             org.slf4j.LoggerFactory.getLogger(CollaborationService.class).debug(
+                "Session Monitor: Integrity OK. Count={}", sessionMapSize
+            );
         }
+    }
 
-        broadcastPresence(projectId, userId, nickname, "LEAVE");
+    public void userLeft(Long projectId, Long userId, String nickname) {
+        // Manual user left logic if needed (usually handled by disconnect)
     }
 
     @org.springframework.context.event.EventListener
@@ -120,29 +147,66 @@ public class CollaborationService {
         SessionInfo info = sessionMap.remove(sessionId);
         
         if (info != null) {
-            java.util.Set<String> sessions = projectSessions.get(info.projectId);
-            if (sessions != null) {
-                sessions.remove(sessionId);
-                 if (sessions.isEmpty()) {
-                    projectSessions.remove(info.projectId);
-                }
-            }
+            java.util.concurrent.atomic.AtomicInteger activeCount = new java.util.concurrent.atomic.AtomicInteger(-1);
             
-            broadcastPresence(info.projectId, info.userId, info.nickname, "LEAVE");
+            projectSessions.compute(info.projectId(), (key, sessions) -> {
+                if (sessions == null) {
+                    activeCount.set(0);
+                    return null;
+                }
+                boolean removed = sessions.remove(sessionId);
+                int count = countUniqueUsers(sessions);
+                activeCount.set(count);
+                
+                org.slf4j.LoggerFactory.getLogger(CollaborationService.class).debug(
+                    "Session Disconnected: pid={}, uid={}, sid={}, removedFromSet={}, activeCount={}, closeStatus={}", 
+                    info.projectId(), info.userId(), sessionId, removed, count, event.getCloseStatus()
+                );
+                return sessions.isEmpty() ? null : sessions;
+            });
+            
+            // Only broadcast if the project set actually existed/we processed it
+            if (activeCount.get() != -1) {
+                broadcastPresence(info.projectId(), info.userId(), info.nickname(), "LEAVE", activeCount.get());
+            }
+        } else {
+             org.slf4j.LoggerFactory.getLogger(CollaborationService.class).debug(
+                "Session Disconnected (Ignored): sid={} (Not in map), closeStatus={}", sessionId, event.getCloseStatus()
+            );
         }
     }
     
-    private void broadcastPresence(Long projectId, Long userId, String nickname, String type) {
+    // Helper to count unique users in a set of sessions
+    private int countUniqueUsers(java.util.Set<String> sessions) {
+        if (sessions == null || sessions.isEmpty()) return 0;
+        return (int) sessions.stream()
+            .map(sessionMap::get)
+            .filter(java.util.Objects::nonNull)
+            .map(SessionInfo::userId)
+            .distinct()
+            .count();
+    }
+
+
+    
+
+
+    private void broadcastPresence(Long projectId, Long userId, String nickname, String type, int count) {
         String destination = "/topic/project/" + projectId + "/presence";
-        int count = projectSessions.containsKey(projectId) ? projectSessions.get(projectId).size() : 0;
         
-        messagingTemplate.convertAndSend(destination, java.util.Map.of(
-            "type", type,
-            "projectId", projectId,
-            "userId", userId,
-            "nickname", nickname,
-            "activeCount", count
-        ));
+        org.slf4j.LoggerFactory.getLogger(CollaborationService.class).debug(
+            "Broadcasting Presence: type={}, pid={}, count={}", type, projectId, count
+        );
+
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("type", type);
+        payload.put("projectId", projectId);
+        payload.put("userId", userId);
+        payload.put("nickname", nickname);
+        payload.put("activeCount", count);
+        payload.put("timestamp", System.currentTimeMillis());
+
+        messagingTemplate.convertAndSend(destination, payload);
     }
 
     public void userStartedEditing(Long projectId, Long userId, String nickname, Integer unicode) {
@@ -205,21 +269,38 @@ public class CollaborationService {
                    if (idx != -1) {
                        order.set(idx, message.getNewName());
                    }
+                   // Sync DB Sort Orders
+                   glyphService.updateGlyphOrders(projectId, order);
                 });
                 break;
                 
             case DELETE:
                 glyphService.deleteGlyph(projectId, message.getGlyphName());
-                updateGlyphOrderInLib(projectId, order -> order.remove(message.getGlyphName()));
+                updateGlyphOrderInLib(projectId, order -> {
+                    order.remove(message.getGlyphName());
+                    // Sync DB Sort Orders (Remainders shift up)
+                    glyphService.updateGlyphOrders(projectId, order);
+                });
                 break;
                 
             case ADD:
                 // Create an empty glyph
-                glyphService.saveGlyph(projectId, message.getGlyphName(), "{\"contours\":[]}", 500);
+                // Determine sortOrder? Ideally, we put it at the end.
+                // We use lib order to determine strict ordering.
+                
+                // 1. First add to Lib to get the "official" new order
                 updateGlyphOrderInLib(projectId, order -> {
                     if (!order.contains(message.getGlyphName())) {
                         order.add(message.getGlyphName());
                     }
+                    
+                    // 2. Now save the glyph with explicit sortOrder? 
+                    // Since saveGlyph doesn't take sortOrder yet, we save first then update orders.
+                    // Or simpler: Save, then sync all orders.
+                    glyphService.saveGlyph(projectId, message.getGlyphName(), "{\"contours\":[]}", 500);
+                    
+                    // 3. Sync all sort orders
+                    glyphService.updateGlyphOrders(projectId, order);
                 });
                 break;
                 
@@ -227,6 +308,9 @@ public class CollaborationService {
                 updateGlyphOrderInLib(projectId, order -> {
                     order.clear();
                     order.addAll(message.getNewOrder());
+                    
+                    // Sync DB Sort Orders
+                    glyphService.updateGlyphOrders(projectId, order);
                 });
                 break;
                 
@@ -241,6 +325,9 @@ public class CollaborationService {
                     if (idx > order.size()) idx = order.size();
                     
                     order.add(idx, message.getGlyphName());
+                    
+                    // Sync DB Sort Orders
+                    glyphService.updateGlyphOrders(projectId, order);
                 });
                 break;
         }
@@ -291,6 +378,7 @@ public class CollaborationService {
     }
 
     public int getActiveUserCount(Long projectId) {
-        return projectSessions.containsKey(projectId) ? projectSessions.get(projectId).size() : 0;
+        if (!projectSessions.containsKey(projectId)) return 0;
+        return countUniqueUsers(projectSessions.get(projectId));
     }
 }

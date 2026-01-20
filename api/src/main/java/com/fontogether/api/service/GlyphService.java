@@ -99,6 +99,16 @@ public class GlyphService {
 
         glyph.setGlyphName(newName);
         glyphRepository.update(glyph);
+        glyph.setGlyphName(newName);
+        glyphRepository.update(glyph);
+        projectRepository.updateTimestamp(projectId);
+    }
+
+    @Transactional
+    public void updateGlyphOrders(Long projectId, List<String> glyphNames) {
+        for (int i = 0; i < glyphNames.size(); i++) {
+            glyphRepository.updateSortOrder(projectId, glyphNames.get(i), i);
+        }
         projectRepository.updateTimestamp(projectId);
     }
 }

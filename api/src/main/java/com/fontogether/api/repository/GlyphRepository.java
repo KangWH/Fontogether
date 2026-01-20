@@ -43,6 +43,7 @@ public class GlyphRepository {
             .outlineData(rs.getString("outline_data"))
             .properties(rs.getString("properties"))
             .lastModifiedBy(rs.getString("last_modified_by"))
+            .sortOrder(rs.getObject("sort_order") != null ? rs.getInt("sort_order") : null)
             .updatedAt(rs.getTimestamp("updated_at").toLocalDateTime())
             .build();
     };
@@ -50,8 +51,8 @@ public class GlyphRepository {
     // 2. 저장 (INSERT)
     public java.util.UUID save(Glyph glyph) {
         String sql = """
-                INSERT INTO glyph (project_id, layer_name, glyph_name, unicodes, advance_width, advance_height, outline_data, properties, last_modified_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?)
+                INSERT INTO glyph (project_id, layer_name, glyph_name, unicodes, advance_width, advance_height, outline_data, properties, last_modified_by, sort_order)
+                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)
                 """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -71,6 +72,7 @@ public class GlyphRepository {
             ps.setString(7, glyph.getOutlineData());
             ps.setString(8, glyph.getProperties());
             ps.setString(9, glyph.getLastModifiedBy());
+            ps.setObject(10, glyph.getSortOrder(), java.sql.Types.INTEGER);
             return ps;
         }, keyHolder);
 
@@ -85,7 +87,7 @@ public class GlyphRepository {
     }
 
     public List<Glyph> findAllByProjectId(Long projectId) {
-        String sql = "SELECT * FROM glyph WHERE project_id = ? ORDER BY glyph_name ASC";
+        String sql = "SELECT * FROM glyph WHERE project_id = ? ORDER BY sort_order ASC, glyph_name ASC";
         return jdbcTemplate.query(sql, glyphRowMapper, projectId);
     }
     
@@ -93,7 +95,7 @@ public class GlyphRepository {
     public void update(Glyph glyph) {
         String sql = """
                 UPDATE glyph 
-                SET glyph_name = ?, advance_width = ?, advance_height = ?, outline_data = ?::jsonb, properties = ?::jsonb, last_modified_by = ?, updated_at = NOW()
+                SET glyph_name = ?, advance_width = ?, advance_height = ?, outline_data = ?::jsonb, properties = ?::jsonb, last_modified_by = ?, sort_order = ?, updated_at = NOW()
                 WHERE glyph_uuid = ?
                 """;
         
@@ -104,6 +106,7 @@ public class GlyphRepository {
                 glyph.getOutlineData(),
                 glyph.getProperties(),
                 glyph.getLastModifiedBy(),
+                glyph.getSortOrder(),
                 glyph.getGlyphUuid()
         );
     }
@@ -112,5 +115,11 @@ public class GlyphRepository {
     public void delete(Glyph glyph) {
         String sql = "DELETE FROM glyph WHERE glyph_uuid = ?";
         jdbcTemplate.update(sql, glyph.getGlyphUuid());
+    }
+
+    // 6. 순서 업데이트 (가볍게 정렬 순서만 변경)
+    public void updateSortOrder(Long projectId, String glyphName, int sortOrder) {
+        String sql = "UPDATE glyph SET sort_order = ? WHERE project_id = ? AND glyph_name = ?";
+        jdbcTemplate.update(sql, sortOrder, projectId, glyphName);
     }
 }
