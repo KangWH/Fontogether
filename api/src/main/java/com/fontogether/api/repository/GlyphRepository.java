@@ -66,8 +66,8 @@ public class GlyphRepository {
             java.sql.Array sqlArray = connection.createArrayOf("varchar", unicodeArr);
             ps.setArray(4, sqlArray);
             
-            ps.setInt(5, glyph.getAdvanceWidth());
-            ps.setInt(6, glyph.getAdvanceHeight());
+            ps.setObject(5, glyph.getAdvanceWidth(), java.sql.Types.INTEGER);
+            ps.setObject(6, glyph.getAdvanceHeight(), java.sql.Types.INTEGER);
             ps.setString(7, glyph.getOutlineData());
             ps.setString(8, glyph.getProperties());
             ps.setString(9, glyph.getLastModifiedBy());

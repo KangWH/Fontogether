@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS font_project (
     project_id      BIGSERIAL PRIMARY KEY,
     title           VARCHAR(255) NOT NULL,      -- 프로젝트 이름
-    owner_id        BIGINT NOT NULL REFERENCES users(id), -- 생성자 ID (User 테이블 참조 유지)
+    owner_id        BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- 생성자 ID (User 삭제시 프로젝트도 삭제)
     
     -- UFO 핵심 메타데이터들 (JSONB로 저장)
     meta_info       JSONB,  -- metainfo.plist (버전 정보 등)

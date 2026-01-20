@@ -32,11 +32,14 @@ public class UfoImportService {
 
     record UfoData(Project project, List<Glyph> glyphs) {}
 
-    public UfoData parseUfoZip(MultipartFile file, Long ownerId) throws Exception {
+    public UfoData parseUfoZip(MultipartFile file, Long ownerId, String customTitle) throws Exception {
+        boolean hasCustomTitle = (customTitle != null && !customTitle.isEmpty());
+        String initialTitle = hasCustomTitle ? customTitle : "Imported Project";
+
         Project project = Project.builder()
                 .ownerId(ownerId)
-                // Default Title, will be overwritten if fontinfo.plist has familyName
-                .title("Imported Project") 
+                // Default Title or Custom Title
+                .title(initialTitle) 
                 .build();
         
         List<Glyph> glyphs = new ArrayList<>();
@@ -70,7 +73,11 @@ public class UfoImportService {
         // fontinfo.plist
         String fontInfoJson = parsePlistToJson(fileContentMap.get(rootPrefix + "fontinfo.plist"));
         project.setFontInfo(fontInfoJson);
-        updateProjectTitleFromFontInfo(project, fontInfoJson);
+        
+        // Only update title from fontinfo if custom title was NOT provided
+        if (!hasCustomTitle) {
+            updateProjectTitleFromFontInfo(project, fontInfoJson);
+        }
         
         // groups.plist
         project.setGroups(parsePlistToJson(fileContentMap.get(rootPrefix + "groups.plist")));
@@ -94,11 +101,24 @@ public class UfoImportService {
         }
 
         // 3. Parse Glyphs
+        // Extract unitsPerEm for fallback
+        int unitsPerEm = 1000; // Default
+        try {
+            if (project.getFontInfo() != null) {
+                ObjectNode fontInfo = (ObjectNode) objectMapper.readTree(project.getFontInfo());
+                if (fontInfo.has("unitsPerEm")) {
+                    unitsPerEm = fontInfo.get("unitsPerEm").asInt();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse unitsPerEm from fontinfo", e);
+        }
+
         // Assume default layer "glyphs" folder for now, or parse layercontents properly
         // For MVP, we scan all .glif files in "glyphs/" directory
         for (String path : fileContentMap.keySet()) {
             if (path.startsWith(rootPrefix + "glyphs/") && path.endsWith(".glif")) {
-                Glyph glyph = parseGlif(fileContentMap.get(path));
+                Glyph glyph = parseGlif(fileContentMap.get(path), unitsPerEm);
                 if (glyph != null) {
                     glyph.setLayerName("public.default"); // Default layer
                     glyphs.add(glyph);
@@ -247,7 +267,7 @@ public class UfoImportService {
         }
     }
 
-    private Glyph parseGlif(byte[] bytes) {
+    private Glyph parseGlif(byte[] bytes, int defaultMetric) {
         try {
              DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
              DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -275,8 +295,24 @@ public class UfoImportService {
              NodeList advanceNodes = glyphElem.getElementsByTagName("advance");
              if (advanceNodes.getLength() > 0) {
                  Element adv = (Element) advanceNodes.item(0);
-                 if (adv.hasAttribute("width")) glyph.setAdvanceWidth(Integer.parseInt(adv.getAttribute("width")));
-                 if (adv.hasAttribute("height")) glyph.setAdvanceHeight(Integer.parseInt(adv.getAttribute("height")));
+                 
+                 // Apply defaultMetric (unitsPerEm) if attribute is missing
+                 if (adv.hasAttribute("width")) {
+                     glyph.setAdvanceWidth(Integer.parseInt(adv.getAttribute("width")));
+                 } else {
+                     glyph.setAdvanceWidth(defaultMetric);
+                 }
+                 
+                 if (adv.hasAttribute("height")) {
+                     glyph.setAdvanceHeight(Integer.parseInt(adv.getAttribute("height")));
+                 } else {
+                     glyph.setAdvanceHeight(defaultMetric);
+                 }
+                 
+             } else {
+                 // No advance tag at all
+                 glyph.setAdvanceWidth(defaultMetric);
+                 glyph.setAdvanceHeight(defaultMetric);
              }
              
              // Outline Data -> Convert XML outline to JSON structure for frontend

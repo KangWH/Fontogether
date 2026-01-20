@@ -85,7 +85,11 @@ const subscribeToTopics = (client, projectId, myUserId) => {
     // D. 강퇴 알림 (강제 로그아웃)
     client.subscribe(`/topic/project/${projectId}/kick`, (message) => {
         const payload = JSON.parse(message.body);
-        if (payload.kickedUserId === myUserId) {
+        
+        // 중요: 모든 클라이언트에게 오므로 내 ID인지 꼭 확인해야 함!
+        console.log('강퇴 알림 수신:', payload); 
+        
+        if (Number(payload.kickedUserId) === Number(myUserId)) {
             alert('프로젝트에서 추방되었습니다.');
             window.location.href = '/'; // 메인으로 리다이렉트
         }

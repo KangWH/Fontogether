@@ -188,9 +188,15 @@ For testing and interactive documentation, please visit **Swagger UI**:
   }
   ```
 
-### 4. 접속자 수 조회
+### 4. 접속자 수 조회 (Session Count)
 - **URL**: `GET /api/projects/{projectId}/glyphs/collaborators/count`
-- **Response**: `Number` (현재 접속 중인 사용자 수)
+- **Response**: `Number` (현재 접속 중인 세션 수. 탭 단위)
+
+### 5. 프로젝트 Export (UFO Download)
+- **URL**: `GET /api/projects/{projectId}/export`
+- **Response**: `200 OK` (ZIP File Download)
+  - `Content-Type`: `application/octet-stream`
+  - `Content-Disposition`: `attachment; filename=project_{id}.zip`
 
 ---
 
@@ -203,10 +209,12 @@ For testing and interactive documentation, please visit **Swagger UI**:
   ```json
   {
       "ownerId": 1,
-      "templateName": "Basic" 
+      "templateName": "Basic",
+      "title": "My Project Title" 
   }
   ```
   *(templateName: "Empty" or "Basic")*
+  *(title: Optional. If omitted, default name used)*
 - **Response**: `200 OK` (ProjectId: `Long`)
 
 ### 2. UFO 파일로 프로젝트 생성 (Import)
@@ -215,6 +223,7 @@ For testing and interactive documentation, please visit **Swagger UI**:
 - **Parameters**:
   - `file`: UFO 폴더를 압축한 ZIP 파일 (`.zip`)
   - `userId`: 소유자 ID (`Long`)
+  - `title`: 프로젝트 제목 (Optional. `fontinfo`보다 우선 적용)
 - **Response**: `200 OK` (ProjectId: `Long`)
 
 ### 3. 프로젝트 메타데이터 수정

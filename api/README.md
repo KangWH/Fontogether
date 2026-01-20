@@ -55,8 +55,8 @@ src/main/java/com/fontogether/api/
 ### REST API 요약
 - **Auth**: `/api/auth/google`, `/api/users/login`, `/api/users/signup`
 - **User**: `/api/users/{id}`, `/api/projects/user/{id}`
-- **Project**: `/api/projects`, `/api/projects/template`, `/api/projects/{id}`
-- **Collaboration**: `/api/projects/{id}/collaborators`
+- **Project**: `/api/projects`, `/api/projects/template`, `/api/projects/ufo`, `/api/projects/{id}/export`
+- **Collaboration**: `/api/projects/{id}/collaborators`, `/api/projects/{id}/glyphs/collaborators/count`
 - **Glyph**: `/api/projects/{id}/glyphs`
 
 ### WebSocket
@@ -236,9 +236,9 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 
 - [ ] Spring Boot 애플리케이션도 Docker 컨테이너화
 - [x] 인증/인가 시스템 추가 (Local & Google OAuth Session)
-- [x] 프로젝트 관리 API 추가
-- [x] 사용자 관리 API 추가
-- [x] 협업 초대 및 권한 관리 API 추가
+- [x] 프로젝트 관리 API 추가 (Create, Import/Export, Update, Delete)
+- [x] 사용자 관리 API 추가 (Profile, Password, Delete Cascade)
+- [x] 협업 초대, 권한 관리, 강퇴(Kick) 기능 추가
 
 ## 라이선스
 

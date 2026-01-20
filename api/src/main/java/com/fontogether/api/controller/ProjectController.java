@@ -26,7 +26,7 @@ public class ProjectController {
     @org.springframework.web.bind.annotation.PostMapping("/template")
     public ResponseEntity<?> createProjectFromTemplate(@org.springframework.web.bind.annotation.RequestBody CreateTemplateRequest request) {
         try {
-            Long projectId = projectService.createProjectFromTemplate(request.getOwnerId(), request.getTemplateName());
+            Long projectId = projectService.createProjectFromTemplate(request.getOwnerId(), request.getTemplateName(), request.getTitle());
             return ResponseEntity.ok(projectId);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Creation Error: " + e.getMessage());
@@ -36,9 +36,10 @@ public class ProjectController {
     @org.springframework.web.bind.annotation.PostMapping(value = "/ufo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> importProject(
             @org.springframework.web.bind.annotation.RequestParam("file") org.springframework.web.multipart.MultipartFile file,
-            @org.springframework.web.bind.annotation.RequestParam("userId") Long userId) {
+            @org.springframework.web.bind.annotation.RequestParam("userId") Long userId,
+            @org.springframework.web.bind.annotation.RequestParam(value = "title", required = false) String title) {
         try {
-            Long projectId = projectService.createProjectFromUfo(userId, file);
+            Long projectId = projectService.createProjectFromUfo(userId, file, title);
             return ResponseEntity.ok(projectId);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Import Error: " + e.getMessage());
@@ -70,6 +71,20 @@ public class ProjectController {
             return ResponseEntity.badRequest().body("Delete Error: " + e.getMessage());
         }
     }
+    
+    @org.springframework.web.bind.annotation.GetMapping("/{projectId}/export")
+    public ResponseEntity<?> exportProject(@org.springframework.web.bind.annotation.PathVariable("projectId") Long projectId) {
+        try {
+            byte[] zipData = projectService.exportProject(projectId);
+            
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"project_" + projectId + ".zip\"")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                    .body(zipData);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Export Error: " + e.getMessage());
+        }
+    }
 
     @lombok.Data
     public static class UpdateProjectRequest {
@@ -81,5 +96,6 @@ public class ProjectController {
     public static class CreateTemplateRequest {
         private Long ownerId;
         private String templateName; // "Empty", "Basic"
+        private String title;
     }
 }

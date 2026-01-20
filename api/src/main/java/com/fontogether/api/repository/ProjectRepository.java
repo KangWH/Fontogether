@@ -42,9 +42,14 @@ public class ProjectRepository {
      */
     public List<Project> findAllByUserId(Long userId) {
         String sql = """
-            SELECT DISTINCT p.*,
-                   CASE WHEN p.owner_id = ? THEN 'OWNER' ELSE 'EDITOR' END as role
+            SELECT DISTINCT p.project_id, p.title, p.owner_id, p.meta_info, p.font_info, 
+                            p.groups, p.kerning, p.features, p.layer_config, p.lib, 
+                            p.created_at, p.updated_at,
+                            u.nickname as owner_nickname, u.email as owner_email,
+                            CASE WHEN p.owner_id = ? THEN 'OWNER' ELSE 'EDITOR' END as role,
+                            (SELECT COUNT(*) FROM project_collaborators pc_check WHERE pc_check.project_id = p.project_id) as collaborator_count
             FROM font_project p
+            JOIN users u ON p.owner_id = u.id
             LEFT JOIN project_collaborators pc ON p.project_id = pc.project_id
             WHERE p.owner_id = ? OR pc.user_id = ?
             ORDER BY p.updated_at DESC
@@ -52,9 +57,19 @@ public class ProjectRepository {
         
         return jdbcTemplate.query(sql, (rs, rowNum) -> {
             Project p = projectRowMapper.mapRow(rs, rowNum);
+            
+            // Enrich with extra fields
+            p.setOwnerNickname(rs.getString("owner_nickname"));
+            p.setOwnerEmail(rs.getString("owner_email"));
+            
             String role = rs.getString("role");
             p.setRole(role);
-            p.setIsShared(!"OWNER".equals(role));
+            
+            int collaboratorCount = rs.getInt("collaborator_count");
+            // isShared is true if I am NOT owner OR if there are collaborators
+            boolean isShared = !"OWNER".equals(role) || collaboratorCount > 0;
+            p.setIsShared(isShared);
+            
             return p;
         }, userId, userId, userId);
     }
@@ -100,6 +115,11 @@ public class ProjectRepository {
     public void deleteById(Long projectId) {
         String sql = "DELETE FROM font_project WHERE project_id = ?";
         jdbcTemplate.update(sql, projectId);
+    }
+
+    public void deleteByOwnerId(Long ownerId) {
+        String sql = "DELETE FROM font_project WHERE owner_id = ?";
+        jdbcTemplate.update(sql, ownerId);
     }
 
     public void updateProjectDetail(Long projectId, String column, String data) {

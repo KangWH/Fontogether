@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final com.fontogether.api.repository.ProjectRepository projectRepository; // Inject ProjectRepository
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -69,6 +70,9 @@ public class UserService {
 
     @Transactional
     public void deleteUser(Long userId) {
+        // Cascade delete: Remove all projects owned by this user
+        projectRepository.deleteByOwnerId(userId);
+        
         userRepository.deleteById(userId);
     }
     

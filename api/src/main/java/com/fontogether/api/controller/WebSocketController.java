@@ -58,12 +58,13 @@ public class WebSocketController {
      * /app/project/join 로 메시지 전송
      */
     @MessageMapping("/project/join")
-    public void handleProjectJoin(@Payload UserPresenceMessage message) {
+    public void handleProjectJoin(@Payload UserPresenceMessage message, SimpMessageHeaderAccessor headerAccessor) {
         log.info("User {} joining project {}", message.getUserId(), message.getProjectId());
         collaborationService.userJoined(
                 message.getProjectId(),
                 message.getUserId(),
-                message.getNickname()
+                message.getNickname(),
+                headerAccessor.getSessionId()
         );
     }
 
@@ -72,12 +73,13 @@ public class WebSocketController {
      * /app/project/leave 로 메시지 전송
      */
     @MessageMapping("/project/leave")
-    public void handleProjectLeave(@Payload UserPresenceMessage message) {
+    public void handleProjectLeave(@Payload UserPresenceMessage message, SimpMessageHeaderAccessor headerAccessor) {
         log.info("User {} leaving project {}", message.getUserId(), message.getProjectId());
         collaborationService.userLeft(
                 message.getProjectId(),
                 message.getUserId(),
-                message.getNickname()
+                message.getNickname(),
+                headerAccessor.getSessionId()
         );
     }
 

@@ -30,5 +30,7 @@ public class Project {
     
     // Transient fields for API response
     private String role;      // OWNER, EDITOR, VIEWER
-    private Boolean isShared; // true if not owner
+    private Boolean isShared; // true if not owner OR has collaborators
+    private String ownerNickname;
+    private String ownerEmail;
 }

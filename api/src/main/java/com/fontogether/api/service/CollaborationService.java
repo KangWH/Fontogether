@@ -77,25 +77,71 @@ public class CollaborationService {
 
     // --- WebSocket Event Handlers ---
 
-    public void userJoined(Long projectId, Long userId, String nickname) {
+    // --- Session Tracking ---
+    // ProjectID -> Set<SessionID> (For efficient counting)
+    private final java.util.Map<Long, java.util.Set<String>> projectSessions = new java.util.concurrent.ConcurrentHashMap<>();
+    
+    // SessionID -> SessionInfo (For lookup on disconnect)
+    private final java.util.Map<String, SessionInfo> sessionMap = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record SessionInfo(Long projectId, Long userId, String nickname) {}
+
+    public void userJoined(Long projectId, Long userId, String nickname, String sessionId) {
+        // Track session
+        sessionMap.put(sessionId, new SessionInfo(projectId, userId, nickname));
+        
+        // Track project sessions
+        projectSessions.computeIfAbsent(projectId, k -> java.util.concurrent.ConcurrentHashMap.newKeySet()).add(sessionId);
+
         // Broadcast to /topic/project/{projectId}/presence
-        String destination = "/topic/project/" + projectId + "/presence";
-        // Payload structure can be flexible, reusing UserPresenceMessage logic usually
-        messagingTemplate.convertAndSend(destination, java.util.Map.of(
-            "type", "JOIN",
-            "projectId", projectId,
-            "userId", userId,
-            "nickname", nickname
-        ));
+        broadcastPresence(projectId, userId, nickname, "JOIN");
     }
 
-    public void userLeft(Long projectId, Long userId, String nickname) {
+    public void userLeft(Long projectId, Long userId, String nickname, String sessionId) {
+        // Remove session
+        if (sessionId != null) {
+            sessionMap.remove(sessionId);
+            
+            java.util.Set<String> sessions = projectSessions.get(projectId);
+            if (sessions != null) {
+                sessions.remove(sessionId);
+                if (sessions.isEmpty()) {
+                    projectSessions.remove(projectId);
+                }
+            }
+        }
+
+        broadcastPresence(projectId, userId, nickname, "LEAVE");
+    }
+
+    @org.springframework.context.event.EventListener
+    public void handleSessionDisconnect(org.springframework.web.socket.messaging.SessionDisconnectEvent event) {
+        String sessionId = event.getSessionId();
+        SessionInfo info = sessionMap.remove(sessionId);
+        
+        if (info != null) {
+            java.util.Set<String> sessions = projectSessions.get(info.projectId);
+            if (sessions != null) {
+                sessions.remove(sessionId);
+                 if (sessions.isEmpty()) {
+                    projectSessions.remove(info.projectId);
+                }
+            }
+            
+            broadcastPresence(info.projectId, info.userId, info.nickname, "LEAVE");
+        }
+    }
+    
+    private void broadcastPresence(Long projectId, Long userId, String nickname, String type) {
         String destination = "/topic/project/" + projectId + "/presence";
+        int count = projectSessions.containsKey(projectId) ? projectSessions.get(projectId).size() : 0;
+        
         messagingTemplate.convertAndSend(destination, java.util.Map.of(
-            "type", "LEAVE",
+            "type", type,
             "projectId", projectId,
             "userId", userId,
-            "nickname", nickname
+            "nickname", nickname,
+            "activeCount", count
         ));
     }
 
@@ -204,6 +250,7 @@ public class CollaborationService {
         messagingTemplate.convertAndSend(destination, message);
     }
 
+    @SuppressWarnings("unchecked")
     private void updateGlyphOrderInLib(Long projectId, java.util.function.Consumer<List<String>> modifier) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
@@ -244,8 +291,6 @@ public class CollaborationService {
     }
 
     public int getActiveUserCount(Long projectId) {
-        // TODO: Implement real session tracking using SessionRegistry or equivalent.
-        // For now, return 0 or rely on client-side counting via presence topic.
-        return 0;
+        return projectSessions.containsKey(projectId) ? projectSessions.get(projectId).size() : 0;
     }
 }

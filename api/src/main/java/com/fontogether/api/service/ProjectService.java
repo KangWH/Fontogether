@@ -15,6 +15,7 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final com.fontogether.api.repository.GlyphRepository glyphRepository;
     private final UfoImportService ufoImportService;
+    private final UfoExportService ufoExportService;
 
     @Transactional(readOnly = true)
     public List<Project> getProjectsByUserId(Long userId) {
@@ -22,10 +23,17 @@ public class ProjectService {
     }
 
     @Transactional
-    public Long createProjectFromTemplate(Long ownerId, String templateName) {
+    public Long createProjectFromTemplate(Long ownerId, String templateName, String customTitle) {
+        String title;
+        if (customTitle != null && !customTitle.isEmpty()) {
+            title = customTitle;
+        } else {
+            title = "New Project (" + templateName + ")";
+        }
+        
         Project project = Project.builder()
                 .ownerId(ownerId)
-                .title("New Project (" + templateName + ")")
+                .title(title)
                 .build();
 
         // 템플릿 데이터 적용 (하드코딩 예시)
@@ -50,9 +58,9 @@ public class ProjectService {
     }
 
     @Transactional
-    public Long createProjectFromUfo(Long ownerId, org.springframework.web.multipart.MultipartFile file) {
+    public Long createProjectFromUfo(Long ownerId, org.springframework.web.multipart.MultipartFile file, String customTitle) {
         try {
-            UfoImportService.UfoData data = ufoImportService.parseUfoZip(file, ownerId);
+            UfoImportService.UfoData data = ufoImportService.parseUfoZip(file, ownerId, customTitle);
             
             // Save Project
             Long projectId = projectRepository.save(data.project());
@@ -91,5 +99,15 @@ public class ProjectService {
         }
 
         projectRepository.deleteById(projectId);
+    }
+    
+    @Transactional(readOnly = true)
+    public byte[] exportProject(Long projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+        
+        List<com.fontogether.api.model.domain.Glyph> glyphs = glyphRepository.findAllByProjectId(projectId);
+        
+        return ufoExportService.exportProjectToUfo(project, glyphs);
     }
 }
