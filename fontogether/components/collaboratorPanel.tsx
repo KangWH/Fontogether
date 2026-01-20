@@ -1,16 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2, MessageSquare, Edit2 } from "lucide-react";
+import NewCollaboratorModal from "./newCollaboratorModal";
 
 type Permission = 'owner' | 'co-owner' | 'editor' | 'viewer';
-
-interface Collaborator {
-  id: string;
-  name: string;
-  email: string;
-  permission: Permission;
-}
 
 interface Note {
   id: string;
@@ -26,63 +20,106 @@ interface Message {
   timestamp: Date;
 }
 
-export default function CollaboratePanel() {
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([
-    { id: '1', name: '사용자 1', email: 'user1@example.com', permission: 'owner' },
-    { id: '2', name: '사용자 2', email: 'user2@example.com', permission: 'editor' },
-  ]);
-  const [notes, setNotes] = useState<Note[]>([
-    { id: '1', author: '사용자 1', content: '오늘 작업 목표: A-Z 글리프 완성', timestamp: new Date() },
-  ]);
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', author: '사용자 2', content: '안녕하세요!', timestamp: new Date() },
-  ]);
+interface CollaboratorProps {
+  projectId: number;
+  userId: number;
+}
+
+interface RawCollaborator {
+  userId: number;
+  nickname: string;
+  email: string;
+  role: string;
+  joinedAt: string;
+}
+interface Collaborator {
+  userId: number;
+  nickname: string;
+  email: string;
+  role: string;
+  joinedAt: Date;
+}
+
+export default function CollaboratePanel({ userId, projectId }: CollaboratorProps) {
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [isNewCollaboratorModalShown, setIsNewCollaboratorModalShown] = useState(false);
+
+  // Useless (dummy data)
+  // const [notes, setNotes] = useState<Note[]>([]);
+  // const [messages, setMessages] = useState<Message[]>([]);
   const [activeTab, setActiveTab] = useState<'collaborators' | 'notes' | 'chat'>('collaborators');
-  const [newMessage, setNewMessage] = useState('');
+  // const [newMessage, setNewMessage] = useState('');
 
-  const addCollaborator = () => {
-    const email = prompt('이메일 주소를 입력하세요:');
-    if (email) {
-      setCollaborators([...collaborators, {
-        id: Date.now().toString(),
-        name: email.split('@')[0],
-        email,
-        permission: 'viewer',
-      }]);
-    }
+
+  // Get collaborator Info
+  useEffect(() => {
+    fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${projectId}/collaborators`)
+      .then(response => response.json())
+      .then((collaboratorData: RawCollaborator[]) => {
+        const collaborators = collaboratorData.map(c => { return {
+          ...c,
+          joinedAt: new Date(c.joinedAt)
+        }});
+        setCollaborators(collaborators);
+      });
+  }, [isNewCollaboratorModalShown, collaborators]);
+
+  const removeCollaborator = (id: number) => {
+    fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${projectId}/collaborators/${id}?requesterId=${userId}`, {
+      method: 'DELETE'
+    })
+      .then(response => {
+        if (!response.ok) {
+          alert("권한 회수가 제대로 되지 않았습니다. 다시 시도해 주세요.");
+          return;
+        }
+
+        setCollaborators(collaborators.filter(c => c.userId !== id));
+      })
   };
 
-  const removeCollaborator = (id: string) => {
-    setCollaborators(collaborators.filter(c => c.id !== id));
+  const updatePermission = (id: number, role: 'EDITOR' | 'VIEWER') => {
+    fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${projectId}/collaborators/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requesterId: userId,
+        role
+      })
+    })
+      .then(response => {
+        if (!response.ok) {
+          alert("권한 변경이 제대로 되지 않았습니다. 다시 시도해 주세요.");
+          return;
+        }
+
+        setCollaborators(collaborators.map(c => c.userId === id ? { ...c, role } : c));
+      })
   };
 
-  const updatePermission = (id: string, permission: Permission) => {
-    setCollaborators(collaborators.map(c => c.id === id ? { ...c, permission } : c));
-  };
+  // const addNote = () => {
+  //   const content = prompt('메모를 입력하세요:');
+  //   if (content) {
+  //     setNotes([...notes, {
+  //       id: Date.now().toString(),
+  //       author: '현재 사용자',
+  //       content,
+  //       timestamp: new Date(),
+  //     }]);
+  //   }
+  // };
 
-  const addNote = () => {
-    const content = prompt('메모를 입력하세요:');
-    if (content) {
-      setNotes([...notes, {
-        id: Date.now().toString(),
-        author: '현재 사용자',
-        content,
-        timestamp: new Date(),
-      }]);
-    }
-  };
-
-  const sendMessage = () => {
-    if (newMessage.trim()) {
-      setMessages([...messages, {
-        id: Date.now().toString(),
-        author: '현재 사용자',
-        content: newMessage,
-        timestamp: new Date(),
-      }]);
-      setNewMessage('');
-    }
-  };
+  // const sendMessage = () => {
+  //   if (newMessage.trim()) {
+  //     setMessages([...messages, {
+  //       id: Date.now().toString(),
+  //       author: '현재 사용자',
+  //       content: newMessage,
+  //       timestamp: new Date(),
+  //     }]);
+  //     setNewMessage('');
+  //   }
+  // };
 
   return (
     <div className="h-full flex flex-col">
@@ -114,50 +151,61 @@ export default function CollaboratePanel() {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold">협업 인원</h3>
               <button
-                onClick={addCollaborator}
-                className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                onClick={() => setIsNewCollaboratorModalShown(true)}
+                className="p-1 text-gray-700 dark:text-zinc-300 rounded text-xs hover:bg-gray-200 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
               >
-                <Plus size={14} />
-                추가
+                <Plus size={12} />
               </button>
             </div>
             <div className="space-y-2">
               {collaborators.map(collab => (
-                <div key={collab.id} className="p-3 border border-gray-200 dark:border-zinc-700 rounded">
+                <div key={collab.userId} className="p-3 border border-gray-200 dark:border-zinc-700 rounded">
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <p className="text-sm font-medium">{collab.name}</p>
+                      <p className="text-sm font-medium">{collab.nickname}</p>
                       <p className="text-xs text-gray-500">{collab.email}</p>
                     </div>
                     <button
-                      onClick={() => removeCollaborator(collab.id)}
+                      onClick={() => removeCollaborator(collab.userId)}
                       className="text-red-500 hover:text-red-600"
                     >
                       <Trash2 size={16} />
                     </button>
                   </div>
-                  {collab.permission === 'owner' ? (
+                  {collab.role === 'owner' ? (
                     <div className="w-full px-2 py-1 bg-gray-100 dark:bg-zinc-800 rounded text-xs text-gray-500 select-none">
                       소유자 (변경 불가)
                     </div>
                   ) : (
                     <select
-                      value={collab.permission}
-                      onChange={(e) => updatePermission(collab.id, e.target.value as Permission)}
-                      className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
+                      value={collab.role}
+                      onChange={(e) => updatePermission(collab.userId, e.target.value as 'VIEWER' | 'EDITOR')}
+                      className="w-full p-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
                     >
-                      <option value="co-owner">준소유자</option>
-                      <option value="editor">편집자</option>
-                      <option value="viewer">뷰어</option>
+                      <option value="EDITOR">편집자</option>
+                      <option value="VIEWER">뷰어</option>
                     </select>
                   )}
                 </div>
               ))}
+              {collaborators.length < 1 && (
+                <div className="text-center text-sm text-gray-500 dark:text-zinc-500">협업 인원이 없습니다.</div>
+              )}
             </div>
+
+            {isNewCollaboratorModalShown && (
+              <NewCollaboratorModal
+                ownerId={userId}
+                projectId={projectId}
+                onClose={() => {
+                  setIsNewCollaboratorModalShown(false);
+                }}
+              />
+            )}
           </div>
         )}
 
-        {activeTab === 'notes' && (
+        {/* {activeTab === 'notes' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold">메모</h3>
@@ -207,7 +255,7 @@ export default function CollaboratePanel() {
               </button>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );

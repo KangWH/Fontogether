@@ -1,6 +1,20 @@
-export default function DeleteProjectModal({ ids, onClose }: { ids: Set<number>, onClose: () => void }) {
-  const handleDeletion = () => {
-    // Perform deletion logic here
+export default function DeleteProjectModal({ userId, ids, onClose }: { userId: number, ids: Set<number>, onClose: () => void }) {
+  const handleDeletion = async () => {
+    const responses: Promise<Response>[] = [];
+    ids.forEach(id => {
+      responses.push(fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${id}?userId=${userId}`, {
+        method: 'DELETE'
+      }));
+    });
+
+    Promise.all(responses)
+      .then((a) => {
+        onClose();
+      })
+      .catch((err) => {
+        console.error(err);
+        alert('삭제가 진행되지 않았습니다. 다시 시도하세요.');
+      })
   }
 
   return (
@@ -18,10 +32,7 @@ export default function DeleteProjectModal({ ids, onClose }: { ids: Set<number>,
             </button>
             <button
               className="mt-4 px-4 py-2 grow bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 rounded-md"
-              onClick={() => {
-                handleDeletion();
-                onClose();
-              }}
+              onClick={handleDeletion}
             >
               삭제
             </button>

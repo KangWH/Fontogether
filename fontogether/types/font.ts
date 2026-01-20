@@ -126,19 +126,23 @@ export type ColorTag = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple'
 /* =============== */
 
 export interface ProjectData {
-  project_id: number;
-  title: string;
-  owner_id: number;
-  meta_info: MetaInfo;
-  font_info: FontInfo;
-  groups: Groups;
-  kerning: Kerning;
-  layer_config: LayerContents;
-  glyphs: Glyph[];
+  createdAt: Date;
   features: string;
-  created_at: Date;
-  updated_at: Date;
-};
+  // fontInfo: FontInfo;
+  fontInfo: string;
+  groups: Groups;
+  isShared: boolean;
+  kerning: Kerning;
+  layerConfig: LayerContents;
+  // metaInfo: MetaInfo;
+  metaInfo: string;
+  ownerId: number;
+  ownerNickname: string;
+  projectId: number;
+  role: 'OWNER' | 'EDITOR' | 'VIEWER'; // Needs check
+  title: string;
+  updatedAt: Date;
+}
 
 export interface MetaInfo {
   creator: string;
@@ -324,6 +328,69 @@ type LayerContent = string[];
 
 /* Glyph data */
 
-interface Glyph {
+// Actual data retrived from server
+export interface RawGlyphData {
+  advanceHeight: number;
+  advanceWidth: number;
+  formatVersion: number;
+  glyphName: string;
+  glyphUuid: string;
+  lastModifiedBy: number | null;
+  layerName: string;
+  outlineData: string;
+  projectId: number;
+  properties: string;
+  unicodes: string[];
+  updatedAt: Date;
+}
 
+// Machine-readable glyph data
+export interface GlyphData {
+  advanceHeight: number;
+  advanceWidth: number;
+  formatVersion: number;
+  glyphName: string;
+  glyphUuid: string;
+  lastModifiedBy: number | null;
+  layerName: string;
+  outlineData: any;
+  projectId: number;
+  properties: any; // ??
+  unicodes: number[];
+  updatedAt: Date;
+}
+
+// Specifications from UFO font format
+interface Glyph {
+  name: string;
+  format: number;
+  formatMinor: number;
+  advances: Advance | null;
+  unicode: Unicode[];
+  note: string | null;
+  image: Image;
+  guideline: Guideline[];
+  // anchor: Anchor[];
+  // outline: Outline;
+  // lib: Lib;
+}
+
+interface Advance {
+  width: number;
+  height: number;
+}
+
+interface Unicode {
+  hex: number;
+}
+
+interface Image {
+  fileName: string;
+  xScale: number;
+  xyScale: number;
+  yxScale: number;
+  yScale: number;
+  xOffset: number;
+  yOffset: number;
+  color: string;
 }

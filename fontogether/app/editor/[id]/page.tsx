@@ -1,10 +1,10 @@
 "use client";
 
 import { act, useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
 import { Panel, Group } from "react-resizable-panels";
-import { ChevronLeft, Circle, Fullscreen, Hand, MousePointer2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenTool, RectangleHorizontal, RulerDimensionLine, Search, SplinePointer, Users, ZoomIn, ZoomOut, Settings, Ligature, SquarePlus, ArrowDownWideNarrow, Minus } from "lucide-react";
+import { ChevronLeft, Circle, Fullscreen, Hand, MousePointer2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenTool, RectangleHorizontal, RulerDimensionLine, Search, SplinePointer, Users, ZoomIn, ZoomOut, Settings, Ligature, SquarePlus, ArrowDownWideNarrow, Minus, Info } from "lucide-react";
 
 import Topbar from "@/components/topbar";
 import Spacer from "@/components/spacer";
@@ -18,27 +18,188 @@ import GlyphPropertiesPanel from "@/components/glyphPropertiesPanel";
 import PreviewPanel from "@/components/previewPanel";
 import OpenTypeFeaturePanel from "@/components/opentypeFeaturePanel";
 import CollaboratePanel from "@/components/collaboratorPanel";
-import { FontData, GlyphData_OLD, SortOption, FilterCategory, ColorTag } from "@/types/font";
+import { FontData, GlyphData_OLD, SortOption, FilterCategory, ColorTag, ProjectData, RawGlyphData, GlyphData } from "@/types/font";
 import { createMockFontData } from "@/utils/mockData";
 import { Plus, Trash2 } from "lucide-react";
 import opentype from 'opentype.js'
+import { useUserStore } from "@/store/userStore";
 
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import DebugPanel from "./debugPanel";
 
 const DynamicGlyphCanvas = dynamic(() => import('@/components/glyphEditor'), {
   ssr: false,
-  loading: () => <p>캔버스 로드 중...</p>,
+  loading: () => <p className="p-4 text-center grow">캔버스 로드 중...</p>,
 });
 
 export default function GlyphsView() {
+  const pathname = usePathname();
+  const lastDir = pathname.split('/').pop() || '';
+  const projectId = parseInt(lastDir);
+  const user = useUserStore((s) => s.user);
   const router = useRouter();
 
+
+  /* Setup web socket */
+
+  const setupWebSocket = (projectId: number, userId: number, nickname: string) => {
+    const client = new Client({
+      webSocketFactory: () => new SockJS(process.env.NEXT_PUBLIC_SERVER_URI + '/ws'),
+      reconnectDelay: 5000,
+      debug: (str) => {
+        console.log(str);
+      },
+      onConnect: () => {
+        console.log("connected");
+        subscribeToTopics(client, projectId, userId);
+        client.publish({
+          destination: '/app/project/join',
+          body: JSON.stringify({ projectId, userId, nickname })
+        });
+      },
+      onStompError: (frame) => {
+        console.error('broker error occurred: ' + frame.headers['message']);
+        console.error('details: ' + frame.body);
+      }
+    });
+
+    client.activate();
+    return client;
+  };
+
+  const subscribeToTopics = (client: Client, projectId: number, userId: number) => {
+    // A. 글리프 업데이트 (그리기 데이터)
+    client.subscribe(`/topic/project/${projectId}/glyph/update`, (message) => {
+      const payload = JSON.parse(message.body);
+      if (payload.userId === userId) return; // 내가 보낸 건 무시 (이미 내 화면엔 그려져 있으므로)
+      
+      console.log(`${payload.nickname}님이 글리프를 수정함:`, payload);
+      // Canvas UI 업데이트 로직...
+    });
+
+    // B. 프로젝트 상세 정보 (커닝, 피처, 메타데이터)
+    client.subscribe(`/topic/project/${projectId}/update/details`, (message) => {
+      const payload = JSON.parse(message.body);
+      console.log(`프로젝트 상세 업데이트 [${payload.updateType}]:`, payload.data);
+      
+      if (payload.updateType === 'FEATURES') {
+        const features = JSON.parse(payload.data);
+        // features.languagesystems, features.tables, features.lookups... 등으로 활용
+      }
+    });
+
+    // C. 사용자 접속 현황 (입장/퇴장)
+    client.subscribe(`/topic/project/${projectId}/presence`, (message) => {
+      const presences = JSON.parse(message.body); // 현재 접속 중인 유저 리스트
+      console.log('현재 접속자 목록:', presences);
+    });
+
+    // D. 강퇴 알림 (강제 로그아웃)
+    client.subscribe(`/topic/project/${projectId}/kick`, (message) => {
+      const payload = JSON.parse(message.body);
+      if (payload.kickedUserId === userId) {
+        router.push(`/projects/${userId}`); // 메인으로 리다이렉트
+        alert('프로젝트의 소유자가 접근 권한을 회수하였습니다.\n프로젝트 목록으로 이동합니다.');
+      }
+    });
+  };
+
+  const client = setupWebSocket(projectId, user.id, user.nickname) // <==================== Websocket setup here
+
+
+  // active users
+  fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${projectId}/glyphs/collaborators/count`)
+  .then(res => res.text())
+  .then(string => console.log('Currently editing users:', string));
+
   // --- Font Data ---
-  const [fontData, setFontData] = useState<FontData>(createMockFontData());
-  const [clipboardGlyphs, setClipboardGlyphs] = useState<GlyphData_OLD[]>([]);
+  const [sampleFontData, setSampleFontData] = useState<FontData>(createMockFontData());
+  const [clipboardGlyphs, setClipboardGlyphs] = useState<GlyphData[]>([]);
+
+  const [fontData, setFontData] = useState<ProjectData | null>(null);
+  const [glyphData, setGlyphData] = useState<GlyphData[]>([]);
+
+  const updateGlyphData = (newGlyphData: GlyphData) => {
+    /* non-web socket method */
+    // fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${projectId}/glyphs`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify({
+    //     projectId: projectId,
+    //     glyphName: newGlyphData.glyphName,
+    //     unicodes: newGlyphData.unicodes.map(num => num.toString(16).toUpperCase().padStart(4, '0')),
+    //     outlineData: JSON.stringify(newGlyphData.outlineData),
+    //     advanceWidth: newGlyphData.advanceWidth,
+    //   })
+    // })
+    //   .then(res => console.log(res));
+
+    /* web socket method (currently not working) */
+    client.publish({
+      destination: '/app/glyph/update',
+      body: JSON.stringify({
+        projectId: projectId,
+        glyphName: newGlyphData.glyphName,
+        outlineData: JSON.stringify(newGlyphData.outlineData),
+        advanceWidth: newGlyphData.advanceWidth,
+        userId: user.userId,
+        nickname: user.nickname
+      })
+    });
+
+    /* Update local variable */
+    const targetIndex = glyphData.findIndex(g => g.glyphUuid === newGlyphData.glyphUuid);
+    let newData = [...glyphData];
+    newData[targetIndex] = newGlyphData;
+    setGlyphData(newData);
+  }
+
+  {/* Load font data */}
+  useEffect(() => {
+    // kick out if user data is not given
+
+    const getProjectData = async () => {
+      const targetProjectId = projectId
+      console.log(`Requesting projects list of user ${user?.id}`);
+      const response = await fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/user/${user?.id}`);
+      const data: any[] = await response.json();
+      const currentData = data.find(f => f.projectId === targetProjectId)
+      setFontData(currentData);
+      // console.log(currentData);
+
+      console.log(`Requesting glyph data of project ${targetProjectId}`);
+      const glyphDataResponse = await fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${targetProjectId}/glyphs`);
+      const rawGlyphs: RawGlyphData[] = await glyphDataResponse.json();
+      const glyphs: GlyphData[] = rawGlyphs.map(rgd => { return {
+        advanceHeight: rgd.advanceHeight,
+        advanceWidth: rgd.advanceWidth,
+        formatVersion: rgd.formatVersion,
+        glyphName: rgd.glyphName,
+        glyphUuid: rgd.glyphUuid,
+        lastModifiedBy: rgd.lastModifiedBy,
+        layerName: rgd.layerName,
+        outlineData: JSON.parse(rgd.outlineData),
+        projectId: rgd.projectId,
+        properties: JSON.parse(rgd.properties), // ??
+        unicodes: rgd.unicodes.map((str: string) => parseInt(str, 16)),
+        updatedAt: new Date(rgd.updatedAt),
+      } as GlyphData});
+      setGlyphData(glyphs);
+      console.log(glyphs);
+    }
+    getProjectData();
+  }, [])
 
   // --- Sidebar State ---
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
+
+  // --- debug dialog ---
+  const [isDebugDialogShown, setIsDebugDialogShown] = useState(false);
 
   // --- Zoom State ---
   const [zoomAction, setZoomAction] = useState<{ type: 'IN' | 'OUT' | 'RESET'; timestamp: number; } | null>(null);
@@ -58,16 +219,16 @@ export default function GlyphsView() {
   const [showFeatureModal, setShowFeatureModal] = useState(false);
 
   // --- Selection Logic ---
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const handleSelectionChange = useCallback((ids: Set<number>) => {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const handleSelectionChange = useCallback((ids: Set<string>) => {
     setSelectedIds(ids);
   }, []);
 
   // --- Opened tabs ---
-  const [openedTabs, setOpenedTabs] = useState<(number | null)[]>([null]) // null for main window
-  const [activeTab, setActiveTab] = useState<number | null>(null) // null for main window
+  const [openedTabs, setOpenedTabs] = useState<(string | null)[]>([null]) // null for main window
+  const [activeTab, setActiveTab] = useState<string | null>(null) // null for main window
 
-  const openTab = (id: number, setActive: boolean = true) => {
+  const openTab = (id: string, setActive: boolean = true) => {
     // 이미 열려 있는 탭인지 확인
     if (openedTabs.includes(id)) {
       if (setActive) {
@@ -82,7 +243,7 @@ export default function GlyphsView() {
       setActiveTab(id)
     }
   };
-  const closeTab = (id: number) => {
+  const closeTab = (id: string) => {
   setOpenedTabs((prevTabs) => {
     const newTabs = prevTabs.filter((tabId) => tabId !== id);
 
@@ -100,58 +261,61 @@ export default function GlyphsView() {
   });
 };
 
-  const switchTab = (id: number | null) => {
+  const switchTab = (id: string | null) => {
     setActiveTab(id)
   }
 
   // --- Available tags and groups ---
   const availableTags = useMemo(() => {
     const tags = new Set<ColorTag>();
-    fontData.glyphs.forEach(g => g.tags?.forEach(t => tags.add(t as ColorTag)));
+    sampleFontData.glyphs.forEach(g => g.tags?.forEach(t => tags.add(t as ColorTag)));
     return Array.from(tags);
-  }, [fontData.glyphs]);
+  }, [sampleFontData.glyphs]);
 
   const availableGroups = useMemo(() => {
-    return Object.keys(fontData.groups || {});
-  }, [fontData.groups]);
+    return Object.keys(sampleFontData.groups || {});
+  }, [sampleFontData.groups]);
 
   // --- Glyph operations ---
   const handleAddGlyph = useCallback(() => {
-    const newId = Math.max(...fontData.glyphs.map(g => g.id), -1) + 1;
-    const newGlyph: GlyphData_OLD = {
-      id: newId,
-      name: `glyph${newId}`,
+    const newId = crypto.randomUUID();
+    const newGlyph: GlyphData = {
+      glyphUuid: newId,
+      glyphName: `glyph${newId}`,
       advanceWidth: 500,
-      lsb: 50,
-      rsb: 50,
+      advanceHeight: 1000,
+      formatVersion: 2,
+      lastModifiedBy: null,
+      layerName: 'public.default',
+      outlineData: {components: [], contours: []},
+      projectId: fontData?.projectId || 0,
+      properties: {},
+      unicodes: [],
+      updatedAt: new Date()
     };
-    setFontData(prev => ({
-      ...prev,
-      glyphs: [...prev.glyphs, newGlyph],
-    }));
-  }, [fontData.glyphs]);
+    setGlyphData(prev => [...prev, newGlyph]);
+  }, [glyphData]);
 
   const handleDuplicateGlyph = useCallback(() => {
     if (selectedIds.size === 0) return;
     const newGlyphs = Array.from(selectedIds).map(id => {
-      const glyph = fontData.glyphs.find(g => g.id === id);
+      const glyph = glyphData.find(g => g.glyphUuid === id);
       if (!glyph) return null;
-      const newId = Math.max(...fontData.glyphs.map(g => g.id), -1) + 1;
-      return { ...glyph, id: newId, name: `${glyph.name}.copy` };
-    }).filter((g): g is GlyphData_OLD => g !== null);
-    setFontData(prev => ({
+      const newId = Math.max(...sampleFontData.glyphs.map(g => g.id), -1) + 1;
+      return { ...glyph, id: newId, name: `${glyph.glyphName}.copy` };
+    }).filter((g) => g !== null);
+    setSampleFontData(prev => ({
       ...prev,
       glyphs: [...prev.glyphs, ...newGlyphs],
     }));
-  }, [selectedIds, fontData.glyphs]);
+  }, [selectedIds, sampleFontData.glyphs]);
 
   const handleDeleteGlyph = useCallback(() => {
     if (selectedIds.size === 0) return;
     const deletedIds = Array.from(selectedIds);
-    setFontData(prev => ({
-      ...prev,
-      glyphs: prev.glyphs.filter(g => !selectedIds.has(g.id)),
-    }));
+    setGlyphData(prev => 
+      prev.filter(g => !selectedIds.has(g.glyphUuid)),
+    );
     setSelectedIds(new Set());
     // 열려 있는 탭 닫기
     deletedIds.forEach(id => {
@@ -162,47 +326,42 @@ export default function GlyphsView() {
   }, [selectedIds, openedTabs]);
 
   const handleCutGlyph = useCallback(() => {
-    const selectedGlyphs = fontData.glyphs.filter(g => selectedIds.has(g.id));
+    const selectedGlyphs = glyphData.filter(g => selectedIds.has(g.glyphUuid));
     setClipboardGlyphs(selectedGlyphs);
     handleDeleteGlyph();
-  }, [selectedIds, fontData.glyphs, handleDeleteGlyph]);
+  }, [selectedIds, glyphData, handleDeleteGlyph]);
 
   const handleCopyGlyph = useCallback(() => {
-    const selectedGlyphs = fontData.glyphs.filter(g => selectedIds.has(g.id));
+    const selectedGlyphs = glyphData.filter(g => selectedIds.has(g.glyphUuid));
     setClipboardGlyphs(selectedGlyphs);
-  }, [selectedIds, fontData.glyphs]);
+  }, [selectedIds, glyphData]);
 
   const handlePasteGlyph = useCallback((newSlot: boolean = false) => {
     if (clipboardGlyphs.length === 0) return;
     if (newSlot) {
-      const newGlyphs = clipboardGlyphs.map((glyph, idx) => {
-        const newId = Math.max(...fontData.glyphs.map(g => g.id), -1) + 1 + idx;
-        return { ...glyph, id: newId, name: `${glyph.name}.copy` };
+      const newGlyphs = clipboardGlyphs.map(glyph => {
+        const newId = crypto.randomUUID();
+        return { ...glyph, id: newId, name: `${glyph.glyphName}.copy` };
       });
-      setFontData(prev => ({
-        ...prev,
-        glyphs: [...prev.glyphs, ...newGlyphs],
-      }));
+      setGlyphData(prev =>
+        [...prev, ...newGlyphs],
+      );
     } else {
       // 선택된 글리프에 붙여넣기 (첫 번째 글리프만)
       if (selectedIds.size === 0) return;
       const targetId = Array.from(selectedIds)[0];
       const sourceGlyph = clipboardGlyphs[0];
-      setFontData(prev => ({
-        ...prev,
-        glyphs: prev.glyphs.map(g => g.id === targetId ? { ...sourceGlyph, id: targetId, name: g.name } : g),
-      }));
+      setGlyphData(prev =>
+        prev.map(g => g.glyphUuid === targetId ? { ...sourceGlyph, glyphUuid: targetId, glyphName: g.glyphName } : g),
+      );
     }
-  }, [clipboardGlyphs, fontData.glyphs, selectedIds]);
+  }, [clipboardGlyphs, sampleFontData.glyphs, selectedIds]);
 
-  const handleGlyphReorder = useCallback((newOrder: number[]) => {
-    const orderedGlyphs = newOrder.map(id => fontData.glyphs.find(g => g.id === id)).filter((g): g is GlyphData_OLD => g !== undefined);
-    const remainingGlyphs = fontData.glyphs.filter(g => !newOrder.includes(g.id));
-    setFontData(prev => ({
-      ...prev,
-      glyphs: [...orderedGlyphs, ...remainingGlyphs],
-    }));
-  }, [fontData.glyphs]);
+  const handleGlyphReorder = useCallback((newOrder: string[]) => {
+    const orderedGlyphs = newOrder.map(id => glyphData.find(g => g.glyphUuid === id)).filter((g): g is GlyphData => g !== undefined);
+    const remainingGlyphs = glyphData.filter(g => !newOrder.includes(g.glyphUuid));
+    setGlyphData(prev => [...orderedGlyphs, ...remainingGlyphs]);
+  }, [glyphData]);
 
   // --- Keyboard shortcuts ---
   useEffect(() => {
@@ -241,7 +400,7 @@ export default function GlyphsView() {
       if (cmdOrCtrl && e.key.toLowerCase() === 'a') {
         if (activeTab === null && !isTextInputFocused) {
           e.preventDefault();
-          setSelectedIds(new Set(fontData.glyphs.map(g => g.id)));
+          setSelectedIds(new Set(glyphData.map(g => g.glyphUuid)));
         }
         // 텍스트 필드에서는 기본 동작(전체 선택) 허용
       }
@@ -330,7 +489,13 @@ export default function GlyphsView() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, selectedIds, fontData.glyphs, handleAddGlyph, handleDeleteGlyph, handleCutGlyph, handleCopyGlyph, handlePasteGlyph, openTab]);
+  }, [activeTab, selectedIds, sampleFontData.glyphs, handleAddGlyph, handleDeleteGlyph, handleCutGlyph, handleCopyGlyph, handlePasteGlyph, openTab]);
+
+  if (fontData === null) {
+    return (
+      <div className="p-4 text-lg text-center justify-center align-center h-screen grow">데이터 로드 중...</div>
+    )
+  }
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden relative">
@@ -339,7 +504,15 @@ export default function GlyphsView() {
         {!isLeftCollapsed && activeTab === null && (
           <Panel defaultSize={240} minSize={180} maxSize={360} className="relative bg-gray-50 dark:bg-zinc-900">
             <Topbar>
-              <TopbarButton onClick={() => router.back()}>
+              <TopbarButton
+                onClick={() => {
+                  if (activeTab !== null) {
+                    setActiveTab(null);
+                  } else {
+                    router.back();
+                  }
+                }}
+              >
                 <ChevronLeft size={18} strokeWidth={1.5} />
               </TopbarButton>
               <Spacer />
@@ -351,7 +524,7 @@ export default function GlyphsView() {
               {/* 필터 */}
               <div className="flex-1 overflow-y-auto">
                 <FilterSidebar
-                  fontData={fontData}
+                  fontData={sampleFontData}
                   filterCategory={filterCategory}
                   filterValue={filterValue}
                   onFilterChange={(cat, val) => {
@@ -368,7 +541,15 @@ export default function GlyphsView() {
         <Panel className="relative flex flex-col">
           <Topbar>
             {(isLeftCollapsed || activeTab !== null) && (
-              <TopbarButton onClick={() => router.back()}>
+              <TopbarButton
+                onClick={() => {
+                  if (activeTab !== null) {
+                    setActiveTab(null);
+                  } else {
+                    router.back();
+                  }
+                }}
+              >
                 <ChevronLeft size={18} strokeWidth={1.5} />
               </TopbarButton>
             )}
@@ -377,9 +558,18 @@ export default function GlyphsView() {
                 <PanelLeftOpen size={18} strokeWidth={1.5} />
               </TopbarButton>
             )}
-            <p className="p-1 font-bold select-none">Project name</p>
+            <div className="p-1 select-none">
+              <p className="font-bold truncate">{fontData.title}</p>
+            </div>
 
             <Spacer />
+
+            {/* Debug */}
+            <TopbarButton
+              onClick={() => setIsDebugDialogShown(true)}
+            >
+              <Info size={18} strokeWidth={1.5} />
+            </TopbarButton>
 
             {/* Glyph operations (only in main view) */}
             {activeTab === null && (
@@ -401,7 +591,16 @@ export default function GlyphsView() {
                 </TopbarButtonGroup>
 
                 {/* Sort dropdown */}
-                <TopbarDropdownButton onClick={() => {sortOptionRef.current?.showPicker()}}>
+                <TopbarDropdownButton
+                  onClick={() => {
+                    try {
+                      sortOptionRef.current?.showPicker();
+                    } catch (err) {
+                      sortOptionRef.current?.focus();
+                      sortOptionRef.current?.click();
+                    }
+                  }}
+                >
                   <ArrowDownWideNarrow size={18} strokeWidth={1.5} />
                   <select
                     ref={sortOptionRef}
@@ -427,7 +626,7 @@ export default function GlyphsView() {
                     max="512"
                     value={glyphSize}
                     onChange={(e) => setGlyphSize(Number(e.target.value))}
-                    className="border border-transparent text-center bg-transparent text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none outline-none rounded"
+                    className="w-12 border border-transparent text-center bg-transparent text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none outline-none rounded"
                     id="glyph-size-input"
                   />
                   <TopbarGroupedButton onClick={() => setGlyphSize(prev => Math.max(4, prev + 1))}>
@@ -537,14 +736,15 @@ export default function GlyphsView() {
 
           {/* Tab bar */}
           {openedTabs.length > 1 ? (
-            <div className="mt-13 mx-1 px-1 py-[2px] flex flex-row bg-gray-100 dark:bg-zinc-900 rounded-full text-xs select-none">
+            <div className="mt-13 mx-1 px-1 py-[2px] flex flex-row bg-gray-100 dark:bg-zinc-900 rounded-full text-xs select-none overflow-x-auto">
               {openedTabs.map((glyphId) => {
-                const glyph = fontData.glyphs.find(g => g.id === glyphId);
+                const glyph = glyphData.find(g => g.glyphUuid === glyphId);
                 const tabName = glyphId === null 
                   ? "Glyphs" 
-                  : `${glyph?.name || 'Unknown'} — Glyph ${glyphId}`;
+                  // : `${glyph?.glyphName || 'Unknown'} — Glyph ${glyphId}`;
+                  : glyph?.glyphName
                 return (
-                  <div key={glyphId} onMouseDown={() => switchTab(glyphId)} className={`relative px-4 py-2 flex flex-row flex-1 rounded-full justify-center ${glyphId === activeTab ? "bg-white dark:bg-zinc-700 shadow" : "hover:bg-gray-200 dark:hover:bg-zinc-800"}`}>
+                  <div key={glyphId} onMouseDown={() => switchTab(glyphId)} className={`relative px-4 py-2 ${activeTab === null ? '' : 'pl-8'} flex flex-row flex-1 rounded-full justify-center ${glyphId === activeTab ? "bg-white dark:bg-zinc-700 shadow" : "hover:bg-gray-200 dark:hover:bg-zinc-800"}`}>
                     {glyphId !== null && glyphId === activeTab && (
                       <button
                         onClick={() => closeTab(glyphId)}
@@ -562,24 +762,31 @@ export default function GlyphsView() {
           {activeTab === null ? (
             <div className={`flex-1 flex flex-col overflow-hidden ${(openedTabs.length <= 1) ? "mt-12" : ""}`}>
               <div className="flex-1 overflow-hidden">
-                <GlyphGrid
-                  fontData={fontData}
-                  selectedIds={selectedIds}
-                  onSelectionChange={handleSelectionChange}
-                  onDoubleClick={openTab}
-                  glyphSize={glyphSize}
-                  sortOption={sortOption}
-                  filterCategory={filterCategory}
-                  filterValue={filterValue}
-                  onGlyphReorder={sortOption === 'index' ? handleGlyphReorder : undefined}
-                />
+                {glyphData.length > 0 || (
+                  <div className="text-md w-full h-full p-4 text-center">글리프 데이터 로드 중...</div>
+                )}
+                {glyphData.length > 0 && (
+                  <GlyphGrid
+                    glyphs={glyphData}
+                    selectedIds={selectedIds}
+                    onSelectionChange={handleSelectionChange}
+                    onDoubleClick={openTab}
+                    glyphSize={glyphSize}
+                    sortOption={sortOption}
+                    filterCategory={filterCategory}
+                    filterValue={filterValue}
+                    onGlyphReorder={sortOption === 'index' ? handleGlyphReorder : undefined}
+                  />
+                )}
               </div>
             </div>
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex-1 overflow-hidden">
                 <DynamicGlyphCanvas 
-                  key={`canvas-${activeTab}`} 
+                  glyphData={glyphData.find(g => g.glyphUuid === activeTab)!!}
+                  onGlyphDataChange={updateGlyphData}
+                  key={`canvas-${activeTab}`}
                   zoomAction={zoomAction} 
                   onZoomComplete={() => setZoomAction(null)} 
                   selectedTool={selectedTool}
@@ -588,7 +795,7 @@ export default function GlyphsView() {
               </div>
             </div>
           )}
-          <PreviewPanel fontData={fontData} />
+          <PreviewPanel fontData={sampleFontData} />
         </Panel>
 
         {/* Right Sidebar */}
@@ -627,42 +834,45 @@ export default function GlyphsView() {
               <div className="flex-1 overflow-hidden">
                 {rightPanel === 'font' && (
                   <FontPropertiesPanel
-                    fontData={fontData}
-                    onFontDataChange={setFontData}
+                    fontData={sampleFontData}
+                    onFontDataChange={setSampleFontData}
                   />
                 )}
                 {rightPanel === 'glyph' && (
                   <GlyphPropertiesPanel
                     glyphs={activeTab !== null
-                      ? fontData.glyphs.filter(g => g.id === activeTab)
-                      : Array.from(selectedIds).map(id => fontData.glyphs.find(g => g.id === id)).filter((g): g is GlyphData_OLD => g !== undefined)
+                      ? glyphData.filter(g => g.glyphUuid === activeTab)
+                      : Array.from(selectedIds).map(id => glyphData.find(g => g.glyphUuid === id)).filter((g): g is GlyphData => g !== undefined)
                     }
-                    fontData={fontData}
+                    fontData={sampleFontData}
                     onGlyphsChange={(newGlyphs) => {
-                      setFontData(prev => ({
-                        ...prev,
-                        glyphs: prev.glyphs.map(g => {
-                          const updated = newGlyphs.find(ng => ng.id === g.id);
-                          return updated || g;
-                        }),
+                      setGlyphData(prev => prev.map(g => {
+                        const updated = newGlyphs.find(ng => ng.glyphUuid === g.glyphUuid);
+                        return updated || g;
                       }));
                     }}
                   />
                 )}
                 {rightPanel === 'collaborate' && (
-                  <CollaboratePanel />
+                  <CollaboratePanel userId={user?.id} projectId={projectId} />
                 )}
               </div>
             </div>
           </Panel>
         )}
 
+        {isDebugDialogShown && (
+          <DebugPanel
+            fontData={fontData}
+            onClose={() => setIsDebugDialogShown(false)}
+          />
+        )}
         {/* OpenType Feature Modal */}
         {showFeatureModal && (
           <OpenTypeFeaturePanel
-            fontData={fontData}
+            fontData={sampleFontData}
             onClose={() => setShowFeatureModal(false)}
-            onFontDataChange={setFontData}
+            onFontDataChange={setSampleFontData}
           />
         )}
       </Group>

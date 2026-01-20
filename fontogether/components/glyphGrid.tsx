@@ -2,22 +2,22 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import GlyphPreview from "./glyphPreview";
-import { FontData, GlyphData_OLD, SortOption, FilterCategory, ColorTag } from "@/types/font";
+import { FontData, GlyphData_OLD, SortOption, FilterCategory, ColorTag, GlyphData } from "@/types/font";
 
 interface GlyphGridProps {
-  fontData: FontData;
-  selectedIds: Set<number>;
-  onSelectionChange: (ids: Set<number>) => void;
-  onDoubleClick: (id: number) => void;
+  glyphs: GlyphData[];
+  selectedIds: Set<string>;
+  onSelectionChange: (ids: Set<string>) => void;
+  onDoubleClick: (id: string) => void;
   glyphSize: number;
   sortOption: SortOption;
   filterCategory: FilterCategory;
   filterValue?: string;
-  onGlyphReorder?: (newOrder: number[]) => void;
+  onGlyphReorder?: (newOrder: string[]) => void;
 }
 
 export default function GlyphGrid({
-  fontData,
+  glyphs,
   selectedIds,
   onSelectionChange,
   onDoubleClick,
@@ -33,16 +33,18 @@ export default function GlyphGrid({
 
   // 필터링된 글리프 목록
   const filteredGlyphs = useMemo(() => {
-    let glyphs = [...fontData.glyphs];
-
+    console.log(glyphs.map((g, i) => `Index ${i}: ${g.glyphName}`));
+    
     // 필터 적용
     if (filterCategory !== 'none' && filterValue) {
       glyphs = glyphs.filter(glyph => {
         switch (filterCategory) {
           case 'tag':
-            return glyph.tags?.includes(filterValue);
+            // return glyph.tags?.includes(filterValue);
+            return true
           case 'group':
-            return glyph.groups?.includes(filterValue);
+            // return glyph.groups?.includes(filterValue);
+            return true
           case 'language':
             // 언어 필터는 나중에 구현
             return true;
@@ -50,7 +52,8 @@ export default function GlyphGrid({
             // 스크립트 필터는 나중에 구현
             return true;
           case 'opentype-class':
-            return glyph.openTypeClass === filterValue;
+            // return glyph.openTypeClass === filterValue;
+            return true;
           default:
             return true;
         }
@@ -64,42 +67,42 @@ export default function GlyphGrid({
         break;
       case 'codepoint':
         glyphs.sort((a, b) => {
-          const aCode = a.unicode?.[0] ?? 0;
-          const bCode = b.unicode?.[0] ?? 0;
+          const aCode = a.unicodes[0] ?? 0;
+          const bCode = b.unicodes[0] ?? 0;
           return aCode - bCode;
         });
         break;
       case 'name':
-        glyphs.sort((a, b) => a.name.localeCompare(b.name));
+        glyphs.sort((a, b) => a.glyphName.localeCompare(b.glyphName));
         break;
       case 'user-friendly':
         // 사용자 친화적 순서 (알파벳 순서 등)
         glyphs.sort((a, b) => {
-          const aCode = a.unicode?.[0] ?? 0;
-          const bCode = b.unicode?.[0] ?? 0;
+          const aCode = a.unicodes[0] ?? 0;
+          const bCode = b.unicodes[0] ?? 0;
           if (aCode >= 65 && aCode <= 90 && bCode >= 65 && bCode <= 90) {
             return aCode - bCode;
           }
           if (aCode >= 97 && aCode <= 122 && bCode >= 97 && bCode <= 122) {
             return aCode - bCode;
           }
-          return a.name.localeCompare(b.name);
+          return a.glyphName.localeCompare(b.glyphName);
         });
         break;
       case 'script-order':
         // 문자 체계 내 기본 알파벳 순서
         glyphs.sort((a, b) => {
-          const aCode = a.unicode?.[0] ?? 0;
-          const bCode = b.unicode?.[0] ?? 0;
+          const aCode = a.unicodes[0] ?? 0;
+          const bCode = b.unicodes[0] ?? 0;
           return aCode - bCode;
         });
         break;
     }
 
     return glyphs;
-  }, [fontData.glyphs, sortOption, filterCategory, filterValue]);
+  }, [glyphs, sortOption, filterCategory, filterValue]);
 
-  const handleClick = useCallback((e: React.MouseEvent, glyphId: number, index: number) => {
+  const handleClick = useCallback((e: React.MouseEvent, glyphUuid: string, index: number) => {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
     const isShift = e.shiftKey;
@@ -107,10 +110,10 @@ export default function GlyphGrid({
     if (cmdOrCtrl) {
       // Cmd/Ctrl 클릭: 토글
       const next = new Set(selectedIds);
-      if (next.has(glyphId)) {
-        next.delete(glyphId);
+      if (next.has(glyphUuid)) {
+        next.delete(glyphUuid);
       } else {
-        next.add(glyphId);
+        next.add(glyphUuid);
       }
       onSelectionChange(next);
       lastSelectedIndexRef.current = index;
@@ -120,12 +123,12 @@ export default function GlyphGrid({
       const end = Math.max(lastSelectedIndexRef.current, index);
       const next = new Set(selectedIds);
       for (let i = start; i <= end; i++) {
-        next.add(filteredGlyphs[i].id);
+        next.add(filteredGlyphs[i].glyphUuid);
       }
       onSelectionChange(next);
     } else {
       // 일반 클릭: 선택 초기화 후 해당 항목만 선택
-      onSelectionChange(new Set([glyphId]));
+      onSelectionChange(new Set([glyphUuid]));
       lastSelectedIndexRef.current = index;
     }
   }, [selectedIds, onSelectionChange, filteredGlyphs]);
@@ -146,12 +149,12 @@ export default function GlyphGrid({
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
-    if (draggedIndex !== null && sortOption === 'index' && onGlyphReorder) {
-      const newOrder = [...filteredGlyphs];
-      const [dragged] = newOrder.splice(draggedIndex, 1);
-      newOrder.splice(dropIndex, 0, dragged);
-      onGlyphReorder(newOrder.map(g => g.id));
-    }
+    // if (draggedIndex !== null && sortOption === 'index' && onGlyphReorder) {
+    //   const newOrder = [...filteredGlyphs];
+    //   const [dragged] = newOrder.splice(draggedIndex, 1);
+    //   newOrder.splice(dropIndex, 0, dragged);
+    //   onGlyphReorder(newOrder.map(g => g.glyphUuid));
+    // }
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
@@ -161,24 +164,24 @@ export default function GlyphGrid({
       <div
         className="p-2 grid gap-2"
         style={{
-          gridTemplateColumns: `repeat(auto-fill, minmax(${glyphSize}px, 1fr))`,
+          gridTemplateColumns: `repeat(auto-fill, minmax(${glyphSize + 16}px, 1fr))`,
         }}
       >
         {filteredGlyphs.map((glyph, index) => (
           <div
-            key={glyph.id}
+            key={glyph.glyphUuid}
             draggable={sortOption === 'index'}
             onDragStart={(e) => handleDragStart(e, index)}
             onDragOver={(e) => handleDragOver(e, index)}
             onDrop={(e) => handleDrop(e, index)}
-            onClick={(e) => handleClick(e, glyph.id, index)}
+            onClick={(e) => handleClick(e, glyph.glyphUuid, index)}
             className={dragOverIndex === index ? "opacity-50" : ""}
           >
             <GlyphPreview
-              id={glyph.id}
+              id={glyph.glyphUuid}
               glyph={glyph}
-              isSelected={selectedIds.has(glyph.id)}
-              onDoubleClick={() => onDoubleClick(glyph.id)}
+              isSelected={selectedIds.has(glyph.glyphUuid)}
+              onDoubleClick={() => onDoubleClick(glyph.glyphUuid)}
               size={glyphSize}
             />
           </div>
