@@ -26,9 +26,6 @@ export default function GlyphPreview({ id, glyph, onDoubleClick = () => {}, isSe
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [contours] = useState(glyph?.outlineData.contours);
-  // if (typeof contours !== "object") {
-  //   console.log(glyph?.glyphName, contours)
-  // }
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');

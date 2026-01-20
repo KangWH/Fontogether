@@ -6,6 +6,7 @@ import { FontData, GlyphData_OLD, SortOption, FilterCategory, ColorTag, GlyphDat
 
 interface GlyphGridProps {
   glyphs: GlyphData[];
+  updatedTime: number | null;
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
   onDoubleClick: (id: string) => void;
@@ -18,6 +19,7 @@ interface GlyphGridProps {
 
 export default function GlyphGrid({
   glyphs,
+  updatedTime,
   selectedIds,
   onSelectionChange,
   onDoubleClick,
@@ -179,6 +181,7 @@ export default function GlyphGrid({
             className={dragOverIndex === index ? "opacity-50" : ""}
           >
             <GlyphPreview
+              key={updatedTime}
               id={glyph.glyphUuid}
               glyph={glyph}
               isSelected={selectedIds.has(glyph.glyphUuid)}

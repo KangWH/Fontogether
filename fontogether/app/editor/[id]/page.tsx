@@ -75,6 +75,8 @@ export default function GlyphsView() {
     // A. 글리프 업데이트 (그리기 데이터)
     client.subscribe(`/topic/project/${projectId}/glyph/update`, (message) => {
       const payload = JSON.parse(message.body);
+      // console.log(payload, payload.userId);
+      if (payload.nickname === user.nickname) return;
       if (payload.userId === userId) return; // 내가 보낸 건 무시 (이미 내 화면엔 그려져 있으므로)
 
       setGlyphData(prev => {
@@ -842,6 +844,7 @@ export default function GlyphsView() {
                 {glyphData.length > 0 && (
                   <GlyphGrid
                     glyphs={glyphData}
+                    updatedTime={updatedTime}
                     selectedIds={selectedIds}
                     onSelectionChange={handleSelectionChange}
                     onDoubleClick={openTab}
@@ -857,7 +860,7 @@ export default function GlyphsView() {
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex-1 overflow-hidden">
-                <DynamicGlyphCanvas 
+                <DynamicGlyphCanvas
                   glyphData={glyphData.find(g => g.glyphUuid === activeTab)!!}
                   updatedTime={updatedTime}
                   onGlyphDataChange={updateGlyphData}

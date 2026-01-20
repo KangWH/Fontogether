@@ -1270,6 +1270,15 @@ export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange,
     };
   }, []);
 
+  useEffect(() => {
+    paper.project.activeLayer.children.filter(
+      (item) => item instanceof paper.Path && !item.data?.isGuide && !item.locked
+    ).forEach(item => {
+      item.remove();
+    })
+    drawGlyph(glyphData);
+  }, [updatedTime]);
+
   return (
     <div className="w-full h-full bg-white overflow-hidden relative">
       <canvas
@@ -1366,7 +1375,7 @@ const syncPaperToData = (project: paper.Project): GlyphOutlineData => {
     return { points: points };
   });
 
-  console.log(JSON.stringify(newContours));
+  // console.log(JSON.stringify(newContours));
 
   return { components: [], contours: newContours };
 };
