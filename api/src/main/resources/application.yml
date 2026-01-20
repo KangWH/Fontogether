@@ -2,6 +2,11 @@ spring:
   application:
     name: fontogether-api
 
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
   sql:
     init:
       mode: always # always: 서버 켤 때마다 schema.sql 실행

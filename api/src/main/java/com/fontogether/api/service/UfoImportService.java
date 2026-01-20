@@ -81,10 +81,16 @@ public class UfoImportService {
         // layercontents.plist -> layer_config
         project.setLayerConfig(parseLayerContents(fileContentMap.get(rootPrefix + "layercontents.plist")));
         
+        // lib.plist
+        project.setLib(parsePlistToJson(fileContentMap.get(rootPrefix + "lib.plist")));
+        
         // features.fea
         byte[] featuresBytes = fileContentMap.get(rootPrefix + "features.fea");
         if (featuresBytes != null) {
-            project.setFeatures(new String(featuresBytes, StandardCharsets.UTF_8));
+            String rawFeatures = new String(featuresBytes, StandardCharsets.UTF_8);
+            project.setFeatures(parseFeaturesToJson(rawFeatures));
+        } else {
+            project.setFeatures("{\"prefix\": \"\", \"classes\": [], \"features\": []}");
         }
 
         // 3. Parse Glyphs
@@ -104,31 +110,66 @@ public class UfoImportService {
     }
 
     private String findRootPrefix(Set<String> paths) {
+        // Prefer shortest path that is not separate metadata (MACOSX)
+        String candidate = null;
         for (String path : paths) {
+            // Ignore __MACOSX folder and dot-underscore files (._metainfo.plist)
+            if (path.contains("__MACOSX") || path.contains("/._") || path.startsWith("._")) {
+                continue;
+            }
+            
             if (path.endsWith("metainfo.plist")) {
-                return path.substring(0, path.length() - "metainfo.plist".length());
+                // Determine prefix
+                String prefix = path.substring(0, path.length() - "metainfo.plist".length());
+                // If we found multiple, maybe pick the shortest (top-most)? 
+                // Usually there is only one valid ufo.
+                if (candidate == null || prefix.length() < candidate.length()) {
+                    candidate = prefix;
+                }
             }
         }
-        return "";
+        return candidate != null ? candidate : "";
     }
 
     private String parsePlistToJson(byte[] bytes) {
         if (bytes == null) return "{}";
         try {
-            // Very basic plist parsing (key-value pairs)
-            // Real plist can be complex (nested dicts, arrays). 
-            // For MVP, we might treat it as raw XML or use a library, 
-            // but strict rules say no new libs. We will try a simple XML to JSON conversion.
+            // Restore standard XML parsing with security configuration.
+            // Since the user might have been running old code, the previous "failure" 
+            // of this method might have been false positive. 
+            // We use the EntityResolver + Feature approach which is standard and secure.
+            
             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            // Secure processing
-            dbFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            // Secure features: Allow DOCTYPE but forbid external entities
+            dbFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false); 
+            dbFactory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            dbFactory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            dbFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+            
+            dbFactory.setXIncludeAware(false);
+            dbFactory.setExpandEntityReferences(false);
+
             DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            
+            // Critical: Ignore DTD external URLs completely by returning empty source
+            dBuilder.setEntityResolver(new org.xml.sax.EntityResolver() {
+                @Override
+                public org.xml.sax.InputSource resolveEntity(String publicId, String systemId) {
+                    return new org.xml.sax.InputSource(new java.io.StringReader(""));
+                }
+            });
+
             Document doc = dBuilder.parse(new ByteArrayInputStream(bytes));
             
-            Element dict = (Element) doc.getElementsByTagName("dict").item(0);
+            NodeList dicts = doc.getElementsByTagName("dict");
+            if (dicts.getLength() == 0) {
+                 log.warn("No <dict> found in plist");
+                 return "{}";
+            }
+            Element dict = (Element) dicts.item(0);
             return convertDictToJson(dict).toString();
         } catch (Exception e) {
-            log.warn("Failed to parse plist, returning empty JSON", e);
+            log.error("Failed to parse plist.", e);
             return "{}";
         }
     }
@@ -301,6 +342,102 @@ public class UfoImportService {
         
         root.set("contours", contours);
         root.set("components", components);
+        return root.toString();
+    }
+
+    private String parseFeaturesToJson(String content) {
+        ObjectNode root = objectMapper.createObjectNode();
+        ArrayNode languagesystems = objectMapper.createArrayNode();
+        ArrayNode classesArray = objectMapper.createArrayNode();
+        ArrayNode lookupsArray = objectMapper.createArrayNode();
+        ArrayNode tablesArray = objectMapper.createArrayNode();
+        ArrayNode featuresArray = objectMapper.createArrayNode();
+        
+        // Check for empty content
+        if (content == null || content.trim().isEmpty()) {
+            root.set("languagesystems", languagesystems);
+            root.set("classes", classesArray);
+            root.set("lookups", lookupsArray);
+            root.set("tables", tablesArray);
+            root.set("features", featuresArray);
+            root.put("prefix", "");
+            return root.toString();
+        }
+
+        String remaining = content;
+
+        // 1. Extract TABLE blocks: table Tag { ... } Tag;
+        java.util.regex.Pattern tablePattern = java.util.regex.Pattern.compile("table\\s+(\\w+)\\s*\\{(.*?)\\}\\s*\\1\\s*;", java.util.regex.Pattern.DOTALL);
+        java.util.regex.Matcher tableMatcher = tablePattern.matcher(remaining);
+        while (tableMatcher.find()) {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("tag", tableMatcher.group(1));
+            node.put("code", tableMatcher.group(2).trim());
+            tablesArray.add(node);
+        }
+        remaining = tableMatcher.replaceAll("");
+
+        // 2. Extract FEATURE blocks: feature Tag { ... } Tag;
+        java.util.regex.Pattern featurePattern = java.util.regex.Pattern.compile("feature\\s+(\\w+)\\s*\\{(.*?)\\}\\s*\\1\\s*;", java.util.regex.Pattern.DOTALL);
+        java.util.regex.Matcher featureMatcher = featurePattern.matcher(remaining);
+        while (featureMatcher.find()) {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("tag", featureMatcher.group(1));
+            node.put("code", featureMatcher.group(2).trim());
+            featuresArray.add(node);
+        }
+        remaining = featureMatcher.replaceAll("");
+
+        // 3. Extract LOOKUP blocks: lookup Name { ... } Name;
+        java.util.regex.Pattern lookupPattern = java.util.regex.Pattern.compile("lookup\\s+(\\w+)\\s*\\{(.*?)\\}\\s*\\1\\s*;", java.util.regex.Pattern.DOTALL);
+        java.util.regex.Matcher lookupMatcher = lookupPattern.matcher(remaining);
+        while (lookupMatcher.find()) {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("name", lookupMatcher.group(1));
+            node.put("code", lookupMatcher.group(2).trim());
+            
+            // Lookups can be inside features too, but we are only catching top-level ones here 
+            // because strict regex replacement removed features already. 
+            // Wait, if a lookup is INSIDE a feature, it was removed in step 2. 
+            // This is correct behavior for "Standalone Lookups".
+            lookupsArray.add(node);
+        }
+        remaining = lookupMatcher.replaceAll("");
+
+        // 4. Extract CLASSES: @Name = [ ... ];
+        java.util.regex.Pattern classPattern = java.util.regex.Pattern.compile("(@\\w+)\\s*=\s*\\[(.*?)\\]\\s*;", java.util.regex.Pattern.DOTALL);
+        java.util.regex.Matcher classMatcher = classPattern.matcher(remaining);
+        while (classMatcher.find()) {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("name", classMatcher.group(1));
+            node.put("code", classMatcher.group(2).trim());
+            classesArray.add(node);
+        }
+        remaining = classMatcher.replaceAll("");
+
+        // 5. Extract LANGUAGESYSTEMs: languagesystem Script Lang;
+        java.util.regex.Pattern langPattern = java.util.regex.Pattern.compile("languagesystem\\s+(\\w+)\\s+(\\w+)\\s*;", java.util.regex.Pattern.MULTILINE);
+        java.util.regex.Matcher langMatcher = langPattern.matcher(remaining);
+        while (langMatcher.find()) {
+            String script = langMatcher.group(1);
+            String lang = langMatcher.group(2);
+            // Reconstruct full string "languagesystem DFLT dflt;" or object? 
+            // User requested separating list. Let's return the full line string for simplicity or structured object.
+            // Let's use string for now, user can parse or display as list.
+            languagesystems.add(langMatcher.group(0).trim());
+        }
+        remaining = langMatcher.replaceAll("");
+
+        // 6. Remaining is PREFIX
+        String prefixText = remaining.trim();
+        
+        root.set("languagesystems", languagesystems);
+        root.set("classes", classesArray);
+        root.set("lookups", lookupsArray);
+        root.set("tables", tablesArray);
+        root.set("features", featuresArray);
+        root.put("prefix", prefixText);
+
         return root.toString();
     }
 }

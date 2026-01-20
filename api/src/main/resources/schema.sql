@@ -44,11 +44,14 @@ CREATE TABLE IF NOT EXISTS font_project (
     font_info       JSONB,  -- fontinfo.plist (폰트 패밀리명, 저작권, 수치값 등)
     groups          JSONB,  -- groups.plist (커닝 그룹 등)
     kerning         JSONB,  -- kerning.plist (커닝 값)
-    features        TEXT,   -- features.fea (OpenType 피처 코드는 텍스트 그대로 저장)
+    features        JSONB,  -- features.fea (Parsed structure: prefix, classes, features)
     
     -- 레이어 관리 (layercontents.plist)
     layer_config    JSONB,  -- 레이어 목록 및 순서 정의
     
+    -- 라이브러리 (lib.plist)
+    lib             JSONB,
+
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -23,6 +23,7 @@ public class Project {
     private String kerning;     // kerning.plist
     private String features;    // features.fea
     private String layerConfig; // layercontents.plist
+    private String lib;         // lib.plist
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

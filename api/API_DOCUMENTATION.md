@@ -10,6 +10,10 @@
 - WebSocket URL: `ws://172.10.5.122.nip.io/ws`
 - **Socket Client**: SockJS supported
 
+## 📚 Interactive Documentation (Swagger)
+For testing and interactive documentation, please visit **Swagger UI**:
+- [http://172.10.5.122.nip.io/swagger-ui/index.html](http://172.10.5.122.nip.io/swagger-ui/index.html)
+
 ---
 
 ## 👤 User API
@@ -332,5 +336,16 @@
       "data": "{\"pairs\": {...}}" 
   }
   ```
-- **UpdateType 종류**: `META_INFO`, `FONT_INFO`, `GROUPS`, `KERNING`, `FEATURES`, `LAYER_CONFIG`
-- **Data**: 각 항목에 맞는 JSON 문자열 (Features는 일반 문자열)
+- **UpdateType 종류**: `META_INFO`, `FONT_INFO`, `GROUPS`, `KERNING`, `FEATURES`, `LAYER_CONFIG`, `LIB`
+- **Data**: 각 항목에 맞는 JSON 문자열
+  - **FEATURES 예시**:
+    ```json
+    {
+      "languagesystems": [...],
+      "classes": [...],
+      "lookups": [...],
+      "tables": [...],
+      "features": [...],
+      "prefix": "..."
+    }
+    ```

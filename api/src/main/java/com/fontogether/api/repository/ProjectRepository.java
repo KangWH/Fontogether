@@ -28,7 +28,9 @@ public class ProjectRepository {
                     .groups(rs.getString("groups"))
                     .kerning(rs.getString("kerning"))
                     .features(rs.getString("features"))
+                    .features(rs.getString("features"))
                     .layerConfig(rs.getString("layer_config"))
+                    .lib(rs.getString("lib"))
                     .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
                     .updatedAt(rs.getTimestamp("updated_at").toLocalDateTime())
                     .build();
@@ -57,8 +59,8 @@ public class ProjectRepository {
         }, userId, userId, userId);
     }
     public Long save(Project project) {
-        String sql = "INSERT INTO font_project (title, owner_id, meta_info, font_info, groups, kerning, features, layer_config) " +
-                     "VALUES (?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?::jsonb)";
+        String sql = "INSERT INTO font_project (title, owner_id, meta_info, font_info, groups, kerning, features, layer_config, lib) " +
+                     "VALUES (?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb)";
         
         org.springframework.jdbc.support.KeyHolder keyHolder = new org.springframework.jdbc.support.GeneratedKeyHolder();
 
@@ -71,7 +73,9 @@ public class ProjectRepository {
             ps.setString(5, project.getGroups());
             ps.setString(6, project.getKerning());
             ps.setString(7, project.getFeatures());
+            ps.setString(7, project.getFeatures());
             ps.setString(8, project.getLayerConfig());
+            ps.setString(9, project.getLib());
             return ps;
         }, keyHolder);
 
@@ -100,15 +104,11 @@ public class ProjectRepository {
 
     public void updateProjectDetail(Long projectId, String column, String data) {
         // Validate column name to prevent SQL injection (Allowed list)
-        if (!java.util.Set.of("meta_info", "font_info", "groups", "kerning", "features", "layer_config").contains(column)) {
+        if (!java.util.Set.of("meta_info", "font_info", "groups", "kerning", "features", "layer_config", "lib").contains(column)) {
             throw new IllegalArgumentException("Invalid column name: " + column);
         }
 
         String sql = "UPDATE font_project SET " + column + " = ?::jsonb, updated_at = NOW() WHERE project_id = ?";
-        // features is TEXT, others are JSONB. Handle exception for features.
-        if ("features".equals(column)) {
-            sql = "UPDATE font_project SET features = ?, updated_at = NOW() WHERE project_id = ?";
-        }
         
         jdbcTemplate.update(sql, data, projectId);
     }

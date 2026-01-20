@@ -75,6 +75,9 @@ public class GlyphController {
      * 프로젝트에 접속 중인 사용자 수 조회
      * GET /api/projects/{projectId}/collaborators/count
      */
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get active user count", description = "Returns the number of users currently connected to the project via WebSocket.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Active user count", 
+           content = @io.swagger.v3.oas.annotations.media.Content(schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = Integer.class, example = "3")))
     @GetMapping("/collaborators/count")
     public ResponseEntity<Integer> getActiveUserCount(@PathVariable Long projectId) {
         int count = collaborationService.getActiveUserCount(projectId);

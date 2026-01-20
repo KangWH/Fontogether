@@ -56,14 +56,15 @@ public class UserController {
         private String password;
     }
     @GetMapping("/{userId}")
-    public ResponseEntity<?> getUser(@PathVariable("userId") Long userId) {
+    public ResponseEntity<User> getUser(@PathVariable("userId") Long userId) {
         try {
             User user = userService.getUser(userId);
             // Hide password
             user.setPassword(null);
             return ResponseEntity.ok(user);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+            // In a real app, use @ControllerAdvice or strict error DTOs
+            return ResponseEntity.badRequest().build(); 
         }
     }
 

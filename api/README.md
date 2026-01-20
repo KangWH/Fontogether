@@ -29,7 +29,6 @@ src/main/java/com/fontogether/api/
 ├── controller/
 │   ├── GlyphController.java          # REST API 컨트롤러
 │   ├── WebSocketController.java      # WebSocket 메시지 처리
-│   ├── HealthCheckController.java    # 헬스 체크
 │   └── TestDbController.java         # DB 연결 테스트 (deprecated)
 ├── service/
 │   ├── GlyphService.java             # 글리프 비즈니스 로직
@@ -44,7 +43,9 @@ src/main/java/com/fontogether/api/
 │       ├── GlyphUpdateMessage.java   # WebSocket 메시지 DTO
 │       └── UserPresenceMessage.java  # 사용자 상태 메시지 DTO
 └── config/
-    └── WebSocketConfig.java          # WebSocket 설정
+    ├── WebSocketConfig.java          # WebSocket 설정
+    ├── SecurityConfig.java           # Spring Security 설정
+    └── OpenApiConfig.java            # Swagger (OpenAPI) 설정
 ```
 
 ## API 엔드포인트
@@ -189,10 +190,15 @@ docker-compose up -d
 java -jar build/libs/api-0.0.1-SNAPSHOT.jar
 ```
 
-### 3. 헬스 체크
-```bash
-curl http://localhost:8080/health
-```
+### 3. API 문서 (Swagger UI)
+서버가 실행 중일 때 아래 주소에서 대화형 API 문서를 확인할 수 있습니다.
+
+- **Local**: [http://localhost:80/swagger-ui/index.html](http://localhost:80/swagger-ui/index.html)
+- **Production (VM)**: [http://172.10.5.122.nip.io/swagger-ui/index.html](http://172.10.5.122.nip.io/swagger-ui/index.html)
+
+### 4. 프론트엔드 가이드
+WebSocket 상세 구현 가이드는 `WEBSOCKET_GUIDE_FRONTEND.md` 파일을 참고하세요.
+(한글 번역 제공)
 
 ## 개발 환경 설정
 
