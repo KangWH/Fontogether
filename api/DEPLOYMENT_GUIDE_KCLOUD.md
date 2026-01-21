@@ -15,7 +15,7 @@
 | `gradle/` | Gradle Wrapper 폴더 | |
 | `docker-compose.yml` | 도커 실행 설정 | |
 | `Dockerfile` | Spring Boot 이미지 빌드 설정 | |
-| `.env` | 환경 변수 파일 | **보안 주의** (직접 생성 권장) |
+| `.env` | 환경 변수 파일 | **보안 주의** (`CORS_ALLOWED_ORIGINS` 포함) |
 | `build.gradle` | 라이브러리 의존성 설정 | |
 | `settings.gradle` | 프로젝트 설정 | |
 | `gradlew` | 실행 스크립트 (Linux용) | |
