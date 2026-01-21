@@ -206,6 +206,42 @@ client.publish({
 });
 ```
 
-**참고**: 위 액션 수행 시 자동으로 다음 토픽으로 변경 사항이 전파됩니다:
-1. `/topic/project/{id}/glyph/action` (액션 자체 알림)
-2. `/topic/project/{id}/update/details` (lib/glyphOrder 변경 알림)
+// ... (Previous content)
+
+## 6. 연결 해제 및 리소스 정리 (Cleanup - 중요!)
+
+페이지 이동(라우팅)이나 로그아웃 시 **반드시** WebSocket 연결을 명시적으로 해제해야 합니다. 그렇지 않으면 서버는 브라우저 탭이 닫히거나 타임아웃될 때까지 사용자가 계속 접속해 있는 것으로 판단하여 **참여자 수(Count)가 줄어들지 않습니다.**
+
+### React `useEffect` Cleanup 예제
+
+컴포넌트가 언마운트될 때 `client.deactivate()`를 호출해야 합니다.
+
+```javascript
+useEffect(() => {
+    // 1. 연결 시작
+    const client = setupWebSocket(projectId, userId);
+
+    // 2. Cleanup 함수 (언마운트/페이지 이동 시 실행됨)
+    return () => {
+        if (client && client.active) {
+            console.log('페이지 이동: WebSocket 연결을 해제합니다.');
+            client.deactivate(); // 서버에 DISCONNECT 프레임 전송 -> 즉시 Count 감소
+        }
+    };
+}, [projectId, userId]);
+```
+
+### 로그아웃 시 처리
+
+로그아웃 버튼 클릭 시에도 토큰 삭제 및 리다이렉트 **전에** 소켓을 끊어주는 것이 좋습니다.
+
+```javascript
+const handleLogout = () => {
+    if (stompClient) {
+        stompClient.deactivate();
+    }
+    // ... 토큰 삭제 및 라우팅
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+};
+```
