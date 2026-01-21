@@ -14,7 +14,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
   const isMultiple = glyphs.length > 1;
   const firstGlyph = glyphs[0];
 
-  const [nameField, setNameField] = useState(firstGlyph.glyphName);
+  const [nameField, setNameField] = useState(firstGlyph?.glyphName);
   const [unicodeField, setUnicodeField] = useState<string>('');
   const unicodeFieldRef = useRef<HTMLInputElement>(null);
 
@@ -70,7 +70,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
     <div className="h-full overflow-y-auto p-4 space-y-4 text-sm">
       {/* 메타데이터 */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold">메타데이터{isMultiple || (<> — 글리프 {firstGlyph.glyphUuid}</>)}</h3>
+        <h3 className="text-sm font-bold">글리프 메타데이터</h3>
         <div>
           <label className="block text-sm font-medium mb-1">글리프 이름</label>
           <input
@@ -121,7 +121,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
             onBlur={() => sanitizeUnicodeField()}
           />
         </div>
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium mb-1">OpenType Glyph class</label>
           <select
             // value={firstGlyph.openTypeClass || 'auto'}
@@ -135,14 +135,14 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
             <option value="mark">Mark</option>
             <option value="component">Component</option>
           </select>
-        </div>
+        </div> */}
       </div>
 
       {/* 메트릭 */}
       <div className="space-y-4">
         <h3 className="text-sm font-bold">메트릭</h3>
         <div className="grid grid-cols-2 gap-2">
-          <div>
+          {/* <div>
             <label className="block text-xs font-medium mb-1">LSB</label>
             <input
               type="number"
@@ -161,9 +161,9 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
               onChange={(e) => updateMetric('rsb', Math.round(Number(e.target.value)))}
               className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
             />
-          </div>
+          </div> */}
           <div>
-            <label className="block text-xs font-medium mb-1">AW</label>
+            <label className="block text-xs font-medium mb-1">글리프 폭</label>
             <input
               type="number"
               value={firstGlyph.advanceWidth}
@@ -209,7 +209,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
       </div>
 
       {/* 태그 및 그룹 */}
-      <div className="space-y-4">
+      {/* <div className="space-y-4">
         <h3 className="text-sm font-bold">태그 및 그룹</h3>
         <div>
           <label className="block text-xs font-medium mb-1">태그</label>
@@ -259,10 +259,10 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
             ))}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* 메모 */}
-      <div className="space-y-4">
+      {/* <div className="space-y-4">
         <h3 className="text-sm font-bold">메모</h3>
         <textarea
           // value={firstGlyph.note || ''}
@@ -271,7 +271,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
           className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-sm"
           rows={4}
         />
-      </div>
+      </div> */}
 
       {isMultiple && (
         <div className="text-xs text-gray-500">

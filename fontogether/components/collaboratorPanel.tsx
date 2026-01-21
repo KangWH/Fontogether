@@ -21,6 +21,7 @@ interface Message {
 }
 
 interface CollaboratorProps {
+  isOwner: boolean;
   projectId: number;
   userId: number;
 }
@@ -40,7 +41,7 @@ interface Collaborator {
   joinedAt: Date;
 }
 
-export default function CollaboratePanel({ userId, projectId }: CollaboratorProps) {
+export default function CollaboratePanel({ isOwner, userId, projectId }: CollaboratorProps) {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isNewCollaboratorModalShown, setIsNewCollaboratorModalShown] = useState(false);
 
@@ -150,44 +151,46 @@ export default function CollaboratePanel({ userId, projectId }: CollaboratorProp
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold">협업 인원</h3>
-              <button
-                onClick={() => setIsNewCollaboratorModalShown(true)}
-                className="p-1 text-gray-700 dark:text-zinc-300 rounded text-xs hover:bg-gray-200 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
-              >
-                <Plus size={12} />
-              </button>
+              {isOwner && (
+                <button
+                  onClick={() => setIsNewCollaboratorModalShown(true)}
+                  className="p-1 text-gray-700 dark:text-zinc-300 rounded text-xs hover:bg-gray-200 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
+                >
+                  <Plus size={12} />
+                </button>
+              )}
             </div>
             <div className="space-y-2">
               {collaborators.map(collab => (
-                <div key={collab.userId} className="p-3 border border-gray-200 dark:border-zinc-700 rounded">
+                <div key={collab.userId} className="p-3 bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-md">
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <p className="text-sm font-medium">{collab.nickname}</p>
-                      <p className="text-xs text-gray-500">{collab.email}</p>
+                      <p className="text-sm font-medium truncate">{collab.nickname}</p>
+                      <p className="text-xs text-gray-500 truncate">{collab.email}</p>
                     </div>
-                    <button
-                      onClick={() => removeCollaborator(collab.userId)}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {isOwner && (
+                      <button
+                        onClick={() => removeCollaborator(collab.userId)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
-                  {collab.role === 'owner' ? (
-                    <div className="w-full px-2 py-1 bg-gray-100 dark:bg-zinc-800 rounded text-xs text-gray-500 select-none">
-                      소유자 (변경 불가)
-                    </div>
-                  ) : (
-                    <select
-                      value={collab.role}
-                      onChange={(e) => updatePermission(collab.userId, e.target.value as 'VIEWER' | 'EDITOR')}
-                      className="w-full p-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs"
-                    >
-                      <option value="EDITOR">편집자</option>
-                      <option value="VIEWER">뷰어</option>
-                    </select>
-                  )}
+                  <select
+                    value={collab.role}
+                    onChange={(e) => updatePermission(collab.userId, e.target.value as 'VIEWER' | 'EDITOR')}
+                    disabled={!isOwner}
+                    className="w-full p-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-xs disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:appearance-none"
+                  >
+                    <option value="EDITOR">편집자</option>
+                    <option value="VIEWER">뷰어</option>
+                  </select>
                 </div>
               ))}
+              {isOwner || (
+                <p className="mt-4 text-center text-gray-500 dark:text-zinc-500 text-xs !leading-normal">협업 인원 추가·변경·삭제는<br />소유자만 할 수 있습니다.</p>
+              )}
               {collaborators.length < 1 && (
                 <div className="text-center text-sm text-gray-500 dark:text-zinc-500">협업 인원이 없습니다.</div>
               )}

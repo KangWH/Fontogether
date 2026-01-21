@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react';
 import { useUserStore } from '@/store/userStore';
+import Spacer from '@/components/spacer';
 
 export default function NewProjectModal({ onClose }: { onClose: () => void }) {
   const user = useUserStore((s) => s.user);
 
   const [projectName, setProjectName] = useState('');
+  const [proceedingMessage, setProceedingMessage] = useState('');
 
   const tabCategories = [
     { label: '빈 프로젝트', category: 'emptyProject' },
@@ -14,13 +16,8 @@ export default function NewProjectModal({ onClose }: { onClose: () => void }) {
   const [ selectedTabIndex, setSelectedTabIndex ] = useState(0);
 
   const glyphSetNames = [
-    '라틴 (Adobe Latin 1)',
-    '라틴 (Adobe Latin 2)',
-    '라틴 (Adobe Latin 3)',
-    '한글 (완성형)',
-    '한글 (완성형, 한자 제외)',
-    '한글 (Adobe-Korean-2)',
-    '한글 (Adobe-KR-9)',
+    { displayText: '라틴 (Adobe Latin 1)', name: 'English' },
+    { displayText: '한국어', name: 'Korean' },
   ];
   const [ selectedGlyphSetIndex, setSelectedGlyphSetIndex ] = useState(0);
 
@@ -33,11 +30,38 @@ export default function NewProjectModal({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const handleCreateFromTemplate = async (templateName: string, projectName: string) => {
+    setProceedingMessage('파일 생성 중...');
+
+    const response = await fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/template`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ownerId: user.id,
+        templateName,
+        title: projectName
+      })
+    });
+
+    setProceedingMessage('');
+
+    if (!response.ok) {
+      alert('something went wrong');
+      return;
+    }
+
+    alert('템플릿이 생성되었습니다.')
+    onClose();
+    setSelectedFile(null);
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) {
       alert("업로드할 파일을 선택해주세요.");
       return;
     }
+
+    setProceedingMessage('파일 업로드 중...');
     
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -50,6 +74,7 @@ export default function NewProjectModal({ onClose }: { onClose: () => void }) {
         body: formData,
       });
 
+      setProceedingMessage('');
       if (response.ok) {
         alert("파일이 성공적으로 업로드되었습니다.");
         onClose();
@@ -109,13 +134,13 @@ export default function NewProjectModal({ onClose }: { onClose: () => void }) {
             <>
               <p>사용할 글리프 집합:</p>
               <div className="mt-2 flex flex-col overflow-y-auto border border-gray-300 dark:border-zinc-700">
-                {glyphSetNames.map((name, index) => (
+                {glyphSetNames.map((data, index) => (
                   <div
-                    key={name}
+                    key={data.name}
                     className={`flex-shrink-0 px-2 py-1 text-sm select-none ${(selectedGlyphSetIndex === index) ? 'bg-blue-500 text-white' : (index % 2 !== 0) ? 'bg-gray-100 dark:bg-zinc-800' : ''}`}
                     onClick={() => setSelectedGlyphSetIndex(index)}
                   >
-                    {name}
+                    {data.displayText}
                   </div>
                 ))}
               </div>
@@ -154,6 +179,10 @@ export default function NewProjectModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="p-4 flex flex-row justify-end gap-2 border-t border-gray-300 dark:border-zinc-700">
+          {proceedingMessage.length > 0 && (
+            <p className="text-sm">{proceedingMessage}</p>
+          )}
+          <Spacer />
           <button
             type="button"
             className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 dark:bg-zinc-800 px-6 py-1 text-sm font-medium active:bg-gray-200 dark:active:bg-zinc-700"
@@ -168,7 +197,7 @@ export default function NewProjectModal({ onClose }: { onClose: () => void }) {
               if (selectedTabIndex === 2) {
                 handleUpload();
               } else {
-                onClose();
+                handleCreateFromTemplate(glyphSetNames[selectedGlyphSetIndex].name, projectName);
               }
             }}
             disabled={(selectedTabIndex === 2 && !selectedFile) || (selectedTabIndex === 0 && projectName.length < 1)}

@@ -43,6 +43,16 @@ export default function GlyphsView() {
   const router = useRouter();
 
 
+  const [currentUserCount, setCurrentUserCount] = useState(0);
+
+  fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${projectId}/glyphs/collaborators/count`)
+  .then(res => res.text())
+  .then(string => {
+    setCurrentUserCount(Math.max(Number(string) - 1, 0));
+    // console.log('Currently editing users:', string);
+  });
+
+
   /* Setup web socket */
 
   const setupWebSocket = (projectId: number, userId: number, nickname: string) => {
@@ -75,9 +85,7 @@ export default function GlyphsView() {
     // A. 글리프 업데이트 (그리기 데이터)
     client.subscribe(`/topic/project/${projectId}/glyph/update`, (message) => {
       const payload = JSON.parse(message.body);
-      // console.log(payload, payload.userId);
-      if (payload.nickname === user.nickname) return;
-      if (payload.userId === userId) return; // 내가 보낸 건 무시 (이미 내 화면엔 그려져 있으므로)
+      if (payload.userId === userId) return;
 
       setGlyphData(prev => {
         const glyphIndex = prev.findIndex(g => g.glyphName === payload.glyphName);
@@ -91,8 +99,6 @@ export default function GlyphsView() {
         return newData;
       });
       setUpdatedTime(Date.now());
-      
-      // console.log(`${payload.nickname}님이 글리프를 수정함:`, payload);
     });
 
     // B. 프로젝트 상세 정보 (커닝, 피처, 메타데이터)
@@ -100,8 +106,17 @@ export default function GlyphsView() {
       const payload = JSON.parse(message.body);
       console.log(`프로젝트 상세 업데이트 [${payload.updateType}]:`, payload.data);
       
-      if (payload.updateType === 'FEATURES') {
-        const features = JSON.parse(payload.data);
+      if (payload.updateType === 'FONT_INFO') {
+        setFontData(prev => {
+          if (prev === null)
+            return prev;
+          return {
+            ...prev,
+            fontInfo: payload.data
+          };
+        });
+        const fontInfo = JSON.parse(payload.data);
+        setFontInfo(fontInfo);
         // features.languagesystems, features.tables, features.lookups... 등으로 활용
       }
     });
@@ -128,22 +143,21 @@ export default function GlyphsView() {
   /* Exit */
 
   const handleExit = () => {
-    client.publish({
-      destination: '/app/project/leave',
-      body: JSON.stringify({ projectId, userId: user.id, nickname: user.nickname }),
-    });
     if (activeTab !== null) {
       setActiveTab(null);
     } else {
+      if (client && client.connected) {
+        client.publish({
+          destination: '/app/project/leave',
+          body: JSON.stringify({ projectId, userId: user.id, nickname: user.nickname }),
+        });
+      }
+      if (client && client.connected) {
+        client.deactivate();
+      }
       router.back();
     }
   }
-
-
-  // active users
-  fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${projectId}/glyphs/collaborators/count`)
-  .then(res => res.text())
-  .then(string => console.log('Currently editing users:', string));
 
   // --- Font Data ---
   const [sampleFontData, setSampleFontData] = useState<FontData>(createMockFontData());
@@ -169,18 +183,21 @@ export default function GlyphsView() {
     // })
     //   .then(res => console.log(res));
 
-    /* web socket method (currently not working) */
-    client.publish({
-      destination: '/app/glyph/update',
-      body: JSON.stringify({
-        projectId: projectId,
-        glyphName: newGlyphData.glyphName,
-        outlineData: JSON.stringify(newGlyphData.outlineData),
-        advanceWidth: newGlyphData.advanceWidth,
-        userId: user.userId,
-        nickname: user.nickname
-      })
-    });
+    /* web socket method */
+    if (client && client.connected) {
+      client.publish({
+        destination: '/app/glyph/update',
+        body: JSON.stringify({
+          projectId: projectId,
+          glyphName: newGlyphData.glyphName,
+          outlineData: JSON.stringify(newGlyphData.outlineData),
+          advanceWidth: newGlyphData.advanceWidth,
+          userId: user.id,
+          nickname: user.nickname,
+          unicodes: newGlyphData.unicodes
+        })
+      });
+    }
 
     /* Update local variable */
     const targetIndex = glyphData.findIndex(g => g.glyphUuid === newGlyphData.glyphUuid);
@@ -190,6 +207,7 @@ export default function GlyphsView() {
   }
 
   {/* Load font data */}
+  const [fontInfo, setFontInfo] = useState<Record<string, any> | null>(null);
   useEffect(() => {
     // kick out if user data is not given
 
@@ -223,7 +241,36 @@ export default function GlyphsView() {
       console.log(glyphs);
     }
     getProjectData();
-  }, [])
+  }, []);
+
+  useMemo(() => {
+    setFontInfo(JSON.parse(fontData?.fontInfo || '{}'));
+  }, [fontData])
+
+  const updateFontInfoHandler = useCallback((newFontInfo: Record<string, any>) => {
+    if (client && client.connected) {
+      client.publish({
+        destination: '/app/project/update/details',
+        body: JSON.stringify({
+          projectId: projectId,
+          userId: user.id,
+          updateType: 'FONT_INFO',
+          data: JSON.stringify(newFontInfo)
+        })
+      });
+    }
+
+    setFontData(prev => {
+      if (prev === null)
+        return null;
+
+      return ({
+        ...prev,
+        fontInfo: JSON.stringify(newFontInfo)
+      });
+    });
+    setFontInfo(newFontInfo);
+  }, []);
 
   // --- Sidebar State ---
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -332,14 +379,16 @@ export default function GlyphsView() {
     };
     setGlyphData(prev => [...prev, newGlyph]);
 
-    client.publish({
-      destination: '/app/glyph/action',
-      body: JSON.stringify({
-        projectId: 1,
-        action: 'ADD',
-        glyphName: `glyph${newIndex}`
-      })
-    });
+    if (client && client.connected) {
+      client.publish({
+        destination: '/app/glyph/action',
+        body: JSON.stringify({
+          projectId: 1,
+          action: 'ADD',
+          glyphName: `glyph${newIndex}`
+        })
+      });
+    }
   }, [glyphData]);
 
   const handleDuplicateGlyph = useCallback(() => {
@@ -361,14 +410,16 @@ export default function GlyphsView() {
 
     selectedIds.forEach(id => {
       const targetGlyphName = glyphData.find(g => g.glyphUuid === id)?.glyphName || '';
-      client.publish({
-        destination: '/app/glyph/action',
-        body: JSON.stringify({
-          projectId: 1,
-          action: 'DELETE',
-          glyphName: targetGlyphName
-        })
-      });
+      if (client && client.connected) {
+        client.publish({
+          destination: '/app/glyph/action',
+          body: JSON.stringify({
+            projectId: 1,
+            action: 'DELETE',
+            glyphName: targetGlyphName
+          })
+        });
+      }
     });
 
     setGlyphData(prev => 
@@ -421,14 +472,16 @@ export default function GlyphsView() {
     const remainingGlyphs = glyphData.filter(g => !newOrder.includes(g.glyphUuid));
 
     const nameMap = [...orderedGlyphs.map(g => g.glyphName), ...remainingGlyphs.map(g => g.glyphName)];
-    client.publish({
-      destination: '/app/glyph/action',
-      body: JSON.stringify({
-        projectId: 1,
-        action: 'REORDER',
-        newOrder: nameMap
-      })
-    });
+    if (client && client.connected) {
+      client.publish({
+        destination: '/app/glyph/action',
+        body: JSON.stringify({
+          projectId: 1,
+          action: 'REORDER',
+          newOrder: nameMap
+        })
+      });
+    }
 
     setGlyphData(prev => [...orderedGlyphs, ...remainingGlyphs]);
   }, [glyphData]);
@@ -570,7 +623,7 @@ export default function GlyphsView() {
   //   setFontData({
   //     createdAt: new Date(),
   //     features: '',
-  //     fontInfo: '',
+  //     fontInfo: '{}',
   //     groups: '',
   //     isShared: false,
   //     kerning: '',
@@ -589,7 +642,7 @@ export default function GlyphsView() {
     <div className="flex h-screen w-full bg-background overflow-hidden relative">
       <Group direction="horizontal">
         {/* Left Sidebar */}
-        {!isLeftCollapsed && activeTab === null && (
+        {false && !isLeftCollapsed && activeTab === null && (
           <Panel defaultSize={240} minSize={180} maxSize={360} className="relative bg-gray-50 dark:bg-zinc-900">
             <Topbar>
               <TopbarButton
@@ -622,7 +675,7 @@ export default function GlyphsView() {
         {/* Main Panel */}
         <Panel className="relative flex flex-col">
           <Topbar>
-            {(isLeftCollapsed || activeTab !== null) && (
+            {(true || isLeftCollapsed || activeTab !== null) && (
               <TopbarButton
                 onClick={handleExit}
               >
@@ -634,8 +687,11 @@ export default function GlyphsView() {
                 <PanelLeftOpen size={18} strokeWidth={1.5} />
               </TopbarButton>
             )}
-            <div className="p-1 select-none">
+            <div className="p-1 select-none flex flex-col justify-start gap-1">
               <p className="font-bold truncate">{fontData.title}</p>
+              {currentUserCount > 1 &&
+                <p className="text-xs truncate text-gray-500 dark:text-zinc-500">{currentUserCount}명 접속 중</p>
+              }
             </div>
 
             <Spacer />
@@ -873,7 +929,7 @@ export default function GlyphsView() {
               </div>
             </div>
           )}
-          <PreviewPanel fontData={sampleFontData} />
+          <PreviewPanel fontData={fontData} glyphData={glyphData} />
         </Panel>
 
         {/* Right Sidebar */}
@@ -912,8 +968,8 @@ export default function GlyphsView() {
               <div className="flex-1 overflow-hidden">
                 {rightPanel === 'font' && (
                   <FontPropertiesPanel
-                    fontData={sampleFontData}
-                    onFontDataChange={setSampleFontData}
+                    fontInfo={fontInfo}
+                    onFontInfoChange={updateFontInfoHandler}
                   />
                 )}
                 {rightPanel === 'glyph' && (
@@ -937,39 +993,45 @@ export default function GlyphsView() {
                           return;
 
                         const newName = matchingNewGlyph.glyphName;
-                        client.publish({
-                          destination: '/app/glyph/action',
-                          body: JSON.stringify({
-                            projectId: 1,
-                            action: 'RENAME',
-                            glyphName: g.glyphName,
-                            newName: newName
-                          })
-                        });
-                      });
-
-                      setGlyphData(prev => prev.map(g => {
-                        const updated = newGlyphs.find(ng => ng.glyphUuid === g.glyphUuid);
-
-                        if (updated !== undefined && updated.glyphName !== g.glyphName) {
+                        if (client && client.connected) {
                           client.publish({
                             destination: '/app/glyph/action',
                             body: JSON.stringify({
                               projectId: 1,
                               action: 'RENAME',
                               glyphName: g.glyphName,
-                              newName: updated.glyphName
+                              newName: newName
                             })
                           });
+                        }
+                      });
+
+                      setGlyphData(prev => prev.map(g => {
+                        const updated = newGlyphs.find(ng => ng.glyphUuid === g.glyphUuid);
+
+                        if (updated !== undefined && updated.glyphName !== g.glyphName) {
+                          if (client && client.connected) {
+                            client.publish({
+                              destination: '/app/glyph/action',
+                              body: JSON.stringify({
+                                projectId: 1,
+                                action: 'RENAME',
+                                glyphName: g.glyphName,
+                                newName: updated.glyphName
+                              })
+                            });
+                          }
                         }
 
                         return updated || g;
                       }));
+
+                      newGlyphs.forEach(g => updateGlyphData(g));
                     }}
                   />
                 )}
                 {rightPanel === 'collaborate' && (
-                  <CollaboratePanel userId={user?.id} projectId={projectId} />
+                  <CollaboratePanel isOwner={user.id === fontData.ownerId} userId={user?.id} projectId={projectId} />
                 )}
               </div>
             </div>

@@ -148,7 +148,7 @@ export default function GlyphsView() {
                 </TopbarButton>
               )}
 
-              <p className="p-1 font-bold">프로젝트</p>
+              <p className="p-1 font-bold truncate">프로젝트</p>
               <Spacer />
 
               {/* Change view mode */}
@@ -278,7 +278,7 @@ export default function GlyphsView() {
             </div>
           </Panel>
 
-          {isRightCollapsed || (
+          {true || isRightCollapsed || (
             <Panel
               id="right"
               defaultSize={240}

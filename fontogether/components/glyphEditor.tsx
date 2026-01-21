@@ -60,7 +60,11 @@ export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange,
   }, [clearHighlights]);
 
   const drawGlyph = (glyphData: GlyphData) => {
-    glyphData.outlineData.contours.forEach((ct: any) => {
+    const contours = glyphData.outlineData?.contours;
+    if (!contours)
+      return;
+
+    contours.forEach((ct: any) => {
       const contour = ct.points
 
       const path = new paper.Path();
@@ -364,6 +368,7 @@ export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange,
 
     // Draw glyph data
     drawGlyph(glyphData);
+    paper.view.center = new paper.Point(glyphData.advanceWidth / 2, -300);
 
     const createHighlight = (point: paper.Point, isHandle: boolean = false) => {
       const circle = new paper.Path.Circle({
@@ -508,16 +513,16 @@ export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange,
 
         // 점의 좌표가 사각형 영역 안에 포함되는지 확인
         paper.project.activeLayer.children.forEach((item: any) => {
-        if (item instanceof paper.Path && !item.data.isGuide) {
-          item.segments.forEach((seg: paper.Segment) => {
-            if (bounds.contains(seg.point)) {
-              if (!selectedSegmentsRef.current.includes(seg)) {
-                selectedSegmentsRef.current.push(seg);
+          if (item instanceof paper.Path && !item.data.isGuide) {
+            item.segments.forEach((seg: paper.Segment) => {
+              if (bounds.contains(seg.point)) {
+                if (!selectedSegmentsRef.current.includes(seg)) {
+                  selectedSegmentsRef.current.push(seg);
+                }
               }
-            }
-          });
-        }
-      });
+            });
+          }
+        });
 
         selectionRect.remove();
         selectionRect = null;
@@ -598,6 +603,10 @@ export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange,
 
     penToolRef.current.onMouseUp = () => {
       lastSegment = null;
+
+      // 저장
+      const updatedData = syncPaperToData(paper.project);
+      onGlyphDataChange({ ...glyphData, outlineData: updatedData });
     };
 
     // Curve tool: change curvature
@@ -674,6 +683,10 @@ export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange,
         // paper.view.draw();
       }
       hitSegment = null;
+
+      // 저장
+      const updatedData = syncPaperToData(paper.project);
+      onGlyphDataChange({ ...glyphData, outlineData: updatedData });
     };
 
     // Hand tool --- move screen around
@@ -772,6 +785,10 @@ export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange,
         currentRect = null;
       }
       rectStartPoint = null;
+
+      // 저장
+      const updatedData = syncPaperToData(paper.project);
+      onGlyphDataChange({ ...glyphData, outlineData: updatedData });
     };
 
     // Circle tool
@@ -830,6 +847,10 @@ export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange,
         currentCircle = null;
       }
       circleStartPoint = null;
+
+      // 저장
+      const updatedData = syncPaperToData(paper.project);
+      onGlyphDataChange({ ...glyphData, outlineData: updatedData });
     };
 
     // Zoom tool
@@ -1183,7 +1204,7 @@ export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange,
         break;
       case 'RESET':
         view.zoom = 1.0;
-        view.center = new paper.Point(500, 500);
+        view.center = new paper.Point(glyphData.advanceWidth / 2, -300);
         // view.draw();
         break;
     }
