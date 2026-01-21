@@ -179,12 +179,23 @@ public class CollaborationService {
     // Helper to count unique users in a set of sessions
     private int countUniqueUsers(java.util.Set<String> sessions) {
         if (sessions == null || sessions.isEmpty()) return 0;
-        return (int) sessions.stream()
+        
+        java.util.List<Long> uniqueUsers = sessions.stream()
             .map(sessionMap::get)
             .filter(java.util.Objects::nonNull)
             .map(SessionInfo::userId)
+            .filter(java.util.Objects::nonNull) // Filter null userIds
             .distinct()
-            .count();
+            .toList();
+            
+        // Debug which users are active
+        if (uniqueUsers.size() > 1) {
+             org.slf4j.LoggerFactory.getLogger(CollaborationService.class).debug(
+                "Active Users Calculation: found {} -> ids={}", uniqueUsers.size(), uniqueUsers
+            );
+        }
+        
+        return uniqueUsers.size();
     }
 
 
