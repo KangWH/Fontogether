@@ -12,15 +12,35 @@
 | 경로/파일명 | 설명 | 비고 |
 | :--- | :--- | :--- |
 | `src/` | 소스 코드 폴더 전체 | |
+### 1. 전송할 파일 목록 (내 컴퓨터 -> 서버)
+
+서버의 `/home/server` 폴더 아래에 `api`와 `frontend` 폴더를 구성합니다.
+
+#### `/home/server/api/` (백엔드)
+| 파일/폴더 | 설명 | 비고 |
+| :--- | :--- | :--- |
+| `src/` | 자바 소스 코드 | |
 | `gradle/` | Gradle Wrapper 폴더 | |
-| `docker-compose.yml` | 도커 실행 설정 | |
+| `nginx/` | **[New]** Nginx 설정 폴더 (`nginx.conf` 포함) | 필수 |
+| `docker-compose.yml` | 도커 실행 설정 (Nginx 포함됨) | 수정됨 |
 | `Dockerfile` | Spring Boot 이미지 빌드 설정 | |
 | `.env` | 환경 변수 파일 | **보안 주의** (`CORS_ALLOWED_ORIGINS` 포함) |
 | `build.gradle` | 라이브러리 의존성 설정 | |
 | `settings.gradle` | 프로젝트 설정 | |
 | `gradlew` | 실행 스크립트 (Linux용) | |
-| `gradlew.bat` | 실행 스크립트 (Windows용) | 선택 사항 |
 | `template/` | 프로젝트 템플릿 폴더 | **필수** (`Korean-Hangul.ufo, English-Latin.ufo` 포함) |
+
+#### `/home/server/frontend/` (프론트엔드)
+Next.js 프로젝트를 정적 내보내기(`npm run build` -> `out` 폴더 생성)한 뒤, 그 **`out` 폴더** 전체를 서버로 복사해야 합니다.
+
+```
+/home/server/
+├── api/
+│   ├── nginx/nginx.conf
+│   └── docker-compose.yml
+└── frontend/
+    └── out/         <-- Next.js 정적 빌드 결과물 (index.html, _next/, 404.html 등)
+```
 
 ### ❌ 제외할 폴더 (보내지 마세요)
 - `db_data/` (DB 파일은 서버에서 새로 생성됨)

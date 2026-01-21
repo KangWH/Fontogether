@@ -4,7 +4,7 @@ services:
     build: .
     container_name: fontogether_api
     ports:
-      - "80:80"
+      - "8080:80" # (선택) 백엔드 직접 테스트용. 운영 시 주석 처리 가능. Nginx가 내부 80으로 연결함.
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
@@ -16,12 +16,26 @@ services:
     networks:
       - font-net
 
+  # 1.5 Nginx (Reverse Proxy & Frontend Server)
+  nginx:
+    image: nginx:alpine
+    container_name: fontogether_nginx
+    ports:
+      - "80:80" # 외부 80 포트를 Nginx가 점유
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../frontend/out:/usr/share/nginx/html:ro # Next.js Static Export 결과물 (out 폴더)
+    depends_on:
+      - api
+    networks:
+      - font-net
+
   # 2. PostgreSQL 데이터베이스
   postgres:
     image: postgres:16-alpine # 가볍고 안정적인 Alpine 리눅스 기반 이미지
     container_name: fontogether_db_container
-    ports:          # 포트 매핑 설정                      배포 시에 무조건 지워야 함!!!!!!!
-      - "5432:5432" # 로컬 포트 : 컨테이너 포트 연결,       배포 시에 무조건 지워야 함!!!!!!!
+    # ports:          # DB 포트는 외부 노출 X (보안)
+    #   - "5432:5432" 
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # application.yml 설정과 맞춰주세요
