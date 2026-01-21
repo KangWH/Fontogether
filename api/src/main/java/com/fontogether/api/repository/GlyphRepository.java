@@ -95,20 +95,29 @@ public class GlyphRepository {
     public void update(Glyph glyph) {
         String sql = """
                 UPDATE glyph 
-                SET glyph_name = ?, advance_width = ?, advance_height = ?, outline_data = ?::jsonb, properties = ?::jsonb, last_modified_by = ?, sort_order = ?, updated_at = NOW()
+                SET glyph_name = ?, unicodes = ?, advance_width = ?, advance_height = ?, outline_data = ?::jsonb, properties = ?::jsonb, last_modified_by = ?, sort_order = ?, updated_at = NOW()
                 WHERE glyph_uuid = ?
                 """;
         
-        jdbcTemplate.update(sql,
-                glyph.getGlyphName(),
-                glyph.getAdvanceWidth(),
-                glyph.getAdvanceHeight(),
-                glyph.getOutlineData(),
-                glyph.getProperties(),
-                glyph.getLastModifiedBy(),
-                glyph.getSortOrder(),
-                glyph.getGlyphUuid()
-        );
+        // Prepare Array
+        String[] unicodeArr = glyph.getUnicodes() != null ? glyph.getUnicodes().toArray(new String[0]) : new String[0];
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setString(1, glyph.getGlyphName());
+            
+            java.sql.Array sqlArray = connection.createArrayOf("varchar", unicodeArr);
+            ps.setArray(2, sqlArray);
+            
+            ps.setObject(3, glyph.getAdvanceWidth(), java.sql.Types.INTEGER);
+            ps.setObject(4, glyph.getAdvanceHeight(), java.sql.Types.INTEGER);
+            ps.setString(5, glyph.getOutlineData());
+            ps.setString(6, glyph.getProperties());
+            ps.setString(7, glyph.getLastModifiedBy());
+            ps.setObject(8, glyph.getSortOrder(), java.sql.Types.INTEGER);
+            ps.setObject(9, glyph.getGlyphUuid());
+            return ps;
+        });
     }
     
     // 5. 삭제

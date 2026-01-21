@@ -297,7 +297,7 @@ public class CollaborationService {
                     // 2. Now save the glyph with explicit sortOrder? 
                     // Since saveGlyph doesn't take sortOrder yet, we save first then update orders.
                     // Or simpler: Save, then sync all orders.
-                    glyphService.saveGlyph(projectId, message.getGlyphName(), "{\"contours\":[]}", 500);
+                    glyphService.saveGlyph(projectId, message.getGlyphName(), "{\"contours\":[]}", 500, java.util.Collections.emptyList());
                     
                     // 3. Sync all sort orders
                     glyphService.updateGlyphOrders(projectId, order);

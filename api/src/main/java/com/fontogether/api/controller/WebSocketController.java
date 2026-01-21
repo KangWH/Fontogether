@@ -29,8 +29,8 @@ public class WebSocketController {
      */
     @MessageMapping("/glyph/update")
     public void handleGlyphUpdate(@Payload GlyphUpdateMessage message, SimpMessageHeaderAccessor headerAccessor) {
-        log.info("Received glyph update: projectId={}, unicode={}, userId={}", 
-                message.getProjectId(), message.getUnicode(), message.getUserId());
+        log.info("Received glyph update: projectId={}, unicodes={}, userId={}", 
+                message.getProjectId(), message.getUnicodes(), message.getUserId());
 
         // 1. DB에 저장
         try {
@@ -38,7 +38,8 @@ public class WebSocketController {
                     message.getProjectId(),
                     message.getGlyphName(),
                     message.getOutlineData(), // Changed from getPathData
-                    message.getAdvanceWidth()
+                    message.getAdvanceWidth(),
+                    message.getUnicodes()
             );
 
             // 2. 타임스탬프 설정 (없으면 현재 시간으로)

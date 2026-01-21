@@ -307,6 +307,7 @@ For testing and interactive documentation, please visit **Swagger UI**:
   {
     "projectId": 1,
     "glyphName": "A",
+    "unicodes": [65],  // Optional. List of decimal unicodes.
     "outlineData": "{\"contours\": ...}",
     "advanceWidth": 600,
     "userId": 1,

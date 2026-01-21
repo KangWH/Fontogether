@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GlyphUpdateMessage {
     private Long projectId;
-    private Integer unicode;
+    private java.util.List<String> unicodes;
     private String glyphName;
     private String outlineData;  // JSON 문자열 (contours, components)
     private Integer advanceWidth;

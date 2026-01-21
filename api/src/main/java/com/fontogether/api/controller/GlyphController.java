@@ -61,7 +61,8 @@ public class GlyphController {
                 projectId,
                 request.getGlyphName(),
                 request.getOutlineData(),
-                request.getAdvanceWidth()
+                request.getAdvanceWidth(),
+                request.getUnicodes()
         );
 
         // 실시간 브로드캐스트

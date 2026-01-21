@@ -22,7 +22,7 @@ public class GlyphService {
      * - 없는 글자라면? -> Insert
      */
     @Transactional
-    public void saveGlyph(Long projectId, String glyphName, String outlineData, Integer width) {
+    public void saveGlyph(Long projectId, String glyphName, String outlineData, Integer width, List<String> unicodes) {
         
         // 1. DB에 이미 있는지 확인 (By Name, not Unicode anymore as primary lookup)
         Optional<Glyph> existing = glyphRepository.findByProjectAndName(projectId, glyphName);
@@ -32,6 +32,9 @@ public class GlyphService {
             Glyph glyph = existing.get();
             glyph.setOutlineData(outlineData);
             glyph.setAdvanceWidth(width);
+            if (unicodes != null) {
+                glyph.setUnicodes(unicodes);
+            }
             
             glyphRepository.update(glyph);
         } else {
@@ -39,7 +42,7 @@ public class GlyphService {
             Glyph newGlyph = Glyph.builder()
                     .projectId(projectId)
                     .glyphName(glyphName)
-                    .unicodes(List.of()) // 나중에 채워넣음
+                    .unicodes(unicodes != null ? unicodes : List.of()) 
                     .advanceWidth(width)
                     .advanceHeight(1000) // Default height
                     .layerName("public")
