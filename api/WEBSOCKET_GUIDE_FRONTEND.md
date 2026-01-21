@@ -108,6 +108,7 @@ client.publish({
     body: JSON.stringify({
         projectId: 1,
         glyphName: 'A',
+        unicodes: [65], // Optional (Decimal List)
         outlineData: JSON.stringify(currentContours), // 경로 데이터를 JSON 문자열로 변환
         advanceWidth: 600,
         userId: 1,

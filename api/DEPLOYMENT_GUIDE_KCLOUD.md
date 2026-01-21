@@ -20,6 +20,7 @@
 | `settings.gradle` | 프로젝트 설정 | |
 | `gradlew` | 실행 스크립트 (Linux용) | |
 | `gradlew.bat` | 실행 스크립트 (Windows용) | 선택 사항 |
+| `template/` | 프로젝트 템플릿 폴더 | **필수** (`Korean-Hangul.ufo, English-Latin.ufo` 포함) |
 
 ### ❌ 제외할 폴더 (보내지 마세요)
 - `db_data/` (DB 파일은 서버에서 새로 생성됨)

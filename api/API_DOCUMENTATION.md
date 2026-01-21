@@ -213,7 +213,7 @@ For testing and interactive documentation, please visit **Swagger UI**:
       "title": "My Project Title" 
   }
   ```
-  *(templateName: "Empty" or "Basic")*
+  *(templateName: "Empty", "Basic", "Korean", or "English")*
   *(title: Optional. If omitted, default name used)*
 - **Response**: `200 OK` (ProjectId: `Long`)
 

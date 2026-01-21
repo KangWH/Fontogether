@@ -31,6 +31,55 @@ public class ProjectService {
             title = "New Project (" + templateName + ")";
         }
         
+        // Korean Template: Load from local UFO
+        if ("Korean".equalsIgnoreCase(templateName)) {
+            try {
+                java.io.File ufoDir = new java.io.File(System.getProperty("user.dir"), "template/Korean-Hangul.ufo");
+                if (!ufoDir.exists()) {
+                    // Start from current dir if absolute path fails
+                    ufoDir = new java.io.File("template/Korean-Hangul.ufo");
+                }
+                
+                UfoImportService.UfoData data = ufoImportService.parseUfoDirectory(ufoDir, ownerId, title);
+                
+                // Save Project
+                Long projectId = projectRepository.save(data.project());
+                
+                // Save Glyphs
+                for (com.fontogether.api.model.domain.Glyph glyph : data.glyphs()) {
+                    glyph.setProjectId(projectId);
+                    glyphRepository.save(glyph);
+                }
+                return projectId;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create project from Korean template: " + e.getMessage(), e);
+            }
+        }
+        // English Template: Load from local UFO
+        else if ("English".equalsIgnoreCase(templateName)) {
+            try {
+                java.io.File ufoDir = new java.io.File(System.getProperty("user.dir"), "template/English-Latin.ufo");
+                if (!ufoDir.exists()) {
+                    // Start from current dir if absolute path fails
+                    ufoDir = new java.io.File("template/English-Latin.ufo");
+                }
+                
+                UfoImportService.UfoData data = ufoImportService.parseUfoDirectory(ufoDir, ownerId, title);
+                
+                // Save Project
+                Long projectId = projectRepository.save(data.project());
+                
+                // Save Glyphs
+                for (com.fontogether.api.model.domain.Glyph glyph : data.glyphs()) {
+                    glyph.setProjectId(projectId);
+                    glyphRepository.save(glyph);
+                }
+                return projectId;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create project from Korean template: " + e.getMessage(), e);
+            }
+        }
+        
         Project project = Project.builder()
                 .ownerId(ownerId)
                 .title(title)

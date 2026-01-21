@@ -92,9 +92,9 @@ Content-Type: application/json
 
 {
   "projectId": 1,
-  "unicode": 65,
+  "unicodes": [65],
   "glyphName": "A",
-  "pathData": "{\"contours\": [...]}",
+  "outlineData": "{\"contours\": [...]}",
   "advanceWidth": 600,
   "userId": 1,
   "nickname": "사용자1"

@@ -33,16 +33,6 @@ public class UfoImportService {
     record UfoData(Project project, List<Glyph> glyphs) {}
 
     public UfoData parseUfoZip(MultipartFile file, Long ownerId, String customTitle) throws Exception {
-        boolean hasCustomTitle = (customTitle != null && !customTitle.isEmpty());
-        String initialTitle = hasCustomTitle ? customTitle : "Imported Project";
-
-        Project project = Project.builder()
-                .ownerId(ownerId)
-                // Default Title or Custom Title
-                .title(initialTitle) 
-                .build();
-        
-        List<Glyph> glyphs = new ArrayList<>();
         Map<String, byte[]> fileContentMap = new HashMap<>();
 
         // 1. Read ZIP content into memory map
@@ -62,6 +52,51 @@ public class UfoImportService {
                 fileContentMap.put(name, baos.toByteArray());
             }
         }
+        
+        return parseUfoData(fileContentMap, ownerId, customTitle);
+    }
+    
+    public UfoData parseUfoDirectory(java.io.File directory, Long ownerId, String customTitle) throws Exception {
+        Map<String, byte[]> fileContentMap = new HashMap<>();
+        // Recursively read directory
+        readDirectoryRecursively(directory, directory, fileContentMap);
+        log.info("Loaded {} files from directory. Keys: {}", fileContentMap.size(), fileContentMap.keySet());
+        return parseUfoData(fileContentMap, ownerId, customTitle);
+    }
+
+    private void readDirectoryRecursively(java.io.File root, java.io.File current, Map<String, byte[]> map) throws java.io.IOException {
+        java.io.File[] files = current.listFiles();
+        if (files == null) return;
+        
+        for (java.io.File f : files) {
+            if (f.isDirectory()) {
+                readDirectoryRecursively(root, f, map);
+            } else {
+                // Rel path
+                // toURI().relativize() produces URI paths (forward slashes) on most platforms
+                String relativePath = root.toURI().relativize(f.toURI()).getPath();
+                
+                // Explicitly normalize to forward slash regardless of platform just in case
+                if (java.io.File.separatorChar == '\\') {
+                    relativePath = relativePath.replace('\\', '/');
+                }
+                
+                map.put(relativePath, java.nio.file.Files.readAllBytes(f.toPath()));
+            }
+        }
+    }
+
+    private UfoData parseUfoData(Map<String, byte[]> fileContentMap, Long ownerId, String customTitle) throws Exception {
+        boolean hasCustomTitle = (customTitle != null && !customTitle.isEmpty());
+        String initialTitle = hasCustomTitle ? customTitle : "Imported Project";
+
+        Project project = Project.builder()
+                .ownerId(ownerId)
+                // Default Title or Custom Title
+                .title(initialTitle) 
+                .build();
+        
+        List<Glyph> glyphs = new ArrayList<>();
 
         // 2. Parse Metadata Files
         // Find root folder prefix if any (e.g., "MyFont.ufo/metainfo.plist")
@@ -205,6 +240,8 @@ public class UfoImportService {
             if (path.endsWith("metainfo.plist")) {
                 // Determine prefix
                 String prefix = path.substring(0, path.length() - "metainfo.plist".length());
+                // If prefix is empty string, it means metainfo.plist is at root.
+                
                 // If we found multiple, maybe pick the shortest (top-most)? 
                 // Usually there is only one valid ufo.
                 if (candidate == null || prefix.length() < candidate.length()) {

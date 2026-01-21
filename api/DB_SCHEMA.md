@@ -65,6 +65,7 @@
 | `outline_data` | `JSONB` | | **핵심 데이터**: 윤곽선, 포인트 정보 (UFO `<outline>` 태그 내용) |
 | `properties` | `JSONB` | `DEFAULT '{}'` | 기타 속성 (Anchor, Guideline, Image 등) |
 | `last_modified_by`| `VARCHAR(255)`| | 마지막 수정자 이메일/닉네임 |
+| `sort_order` | `INTEGER` | `DEFAULT 0` | 글리프 정렬 순서 |
 | `updated_at` | `TIMESTAMP` | `DEFAULT NOW()` | 수정 일시 |
 
 > **Unique Constraint**: `(project_id, layer_name, glyph_name)` - 프로젝트 내 레이어별로 글자 이름은 유일해야 함.

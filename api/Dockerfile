@@ -11,5 +11,6 @@ RUN gradle build -x test --no-daemon
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
+COPY --from=builder /app/template /app/template
 EXPOSE 80
 ENTRYPOINT ["java", "-jar", "app.jar"]
