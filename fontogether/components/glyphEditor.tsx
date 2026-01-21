@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useLayoutEffect, useCallback, act } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback, act, Dispatch, SetStateAction } from "react";
 import paper from "paper";
+import { GlyphData } from "@/types/font";
 
 interface GlyphEditorProps {
+  glyphData: GlyphData;
+  updatedTime: number | null;
+  onGlyphDataChange: (a: GlyphData) => void;
   key: string;
   zoomAction: {
     type: 'IN' | 'OUT' | 'RESET';
@@ -14,7 +18,7 @@ interface GlyphEditorProps {
   onToolChange?: (tool: string) => void;
 }
 
-export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedTool, onToolChange }: GlyphEditorProps) {
+export default function GlyphEditor({ glyphData, updatedTime, onGlyphDataChange, key, zoomAction, onZoomComplete, selectedTool, onToolChange }: GlyphEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const projectRef = useRef<paper.Project | null>(null);
 
@@ -54,6 +58,89 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
       // if (paper.view) paper.view.draw();
     }
   }, [clearHighlights]);
+
+  const drawGlyph = (glyphData: GlyphData) => {
+    const contours = glyphData.outlineData?.contours;
+    if (!contours)
+      return;
+
+    contours.forEach((ct: any) => {
+      const contour = ct.points
+
+      const path = new paper.Path();
+      path.strokeColor = new paper.Color('black');
+      path.strokeWidth = 2;
+      path.closed = true;
+
+      // 3. 포인트 추가 로직 (순환 구조 고려)
+      // 시작점이 제어점일 경우를 대비해 첫 On-curve 점을 찾음
+      const startIndex = contour.findIndex((p: any) => p.type === 'line' || p.type === 'curve');
+      if (startIndex === -1) return;
+
+      for (let i = 0; i <= contour.length; i++) { 
+        const idx = (startIndex + i) % contour.length;
+        const pt = contour[idx];
+
+        if (!pt.type) {
+          // 제어점인 경우: Paper.js는 다음 점의 handleIn으로 이를 처리하거나 
+          // segment의 handleOut으로 처리할 수 있습니다.
+          // 여기서는 segments 배열에 직접 접근하여 처리하는 방식이 정확합니다.
+        } else {
+          // On-curve 점 추가
+          const segment = new paper.Segment(new paper.Point(pt.x, pt.y));
+          
+          // 이전 점들이 제어점이었다면 handle 설정 (곡선 처리)
+          const prevIdx1 = (idx - 1 + contour.length) % contour.length;
+          const prevIdx2 = (idx - 2 + contour.length) % contour.length;
+
+          if (!contour[prevIdx1].type) {
+            if (!contour[prevIdx2].type) {
+              // --- 제어점 2개 (3차 베지어) ---
+              const cp2 = contour[prevIdx1]; // 현재 점(pt)과 연결된 제어점
+              const cp1 = contour[prevIdx2]; // 이전 점과 연결된 제어점
+
+              // 1. 현재 점의 handleIn 설정 (상대 좌표)
+              segment.handleIn = new paper.Point(cp2.x - pt.x, cp2.y - pt.y);
+
+              // 2. 이전 점(lastSegment)의 handleOut 설정 (상대 좌표)
+              if (path.lastSegment) {
+                const prevPt = path.lastSegment.point;
+                path.lastSegment.handleOut = new paper.Point(cp1.x - prevPt.x, cp1.y - prevPt.y);
+              }
+            } else {
+              // --- 제어점 1개 (2차 베지어) ---
+              const cp = contour[prevIdx1];
+
+              // 2차를 3차로 근사하기 위해 2/3 지점으로 핸들 분산 (선택 사항이지만 권장)
+              segment.handleIn = new paper.Point((2/3) * (cp.x - pt.x), (2/3) * (cp.y - pt.y));
+              
+              if (path.lastSegment) {
+                const prevPt = path.lastSegment.point;
+                path.lastSegment.handleOut = new paper.Point((2/3) * (cp.x - prevPt.x), (2/3) * (cp.y - prevPt.y));
+              }
+            }
+          }
+
+          // 💡 마지막 점이 시작점과 좌표가 같다면 중복 추가하지 않고 핸들만 옮겨줌
+          if (i === contour.length) {
+            path.firstSegment.handleIn = segment.handleIn;
+          } else {
+            path.add(segment);
+          }
+        }
+      }
+
+      // 그룹을 만들어 한꺼번에 변환 적용
+      const group = new paper.Group([path]);
+      
+      // 1) Y축 뒤집기 (폰트 좌표계 -> 캔버스 좌표계)
+      group.scale(1, -1, new paper.Point(0, 0));
+
+      // 그룹 해제 
+      group.parent.insertChildren(group.index,  group.removeChildren());
+      group.remove();
+    });
+  };
 
   useLayoutEffect(() => {
     if (!canvasRef.current) return;
@@ -159,7 +246,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
       descender: -200,
       capHeight: 700,
       xHeight: 500,
-      advanceWidth: 500,
+      advanceWidth: glyphData.advanceWidth,
     };
 
     // Baseline
@@ -169,7 +256,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     baseline.strokeColor = new paper.Color("#e5e7eb");
     baseline.strokeWidth = 1;
-    // baseline.guide = true;
+    baseline.data.isGuide = true;
     baseline.locked = true;
     const baselineLabel = new paper.PointText({
       point: new paper.Point(-32760, 0),
@@ -187,7 +274,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     xHeight.strokeColor = new paper.Color("#d1d5db");
     xHeight.strokeWidth = 1;
-    // xHeight.guide = true;
+    xHeight.data.isGuide = true;
     xHeight.locked = true;
     const xHeightLabel = new paper.PointText({
       point: new paper.Point(-32760, metrics.xHeight),
@@ -205,7 +292,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     capHeight.strokeColor = new paper.Color("#d1d5db");
     capHeight.strokeWidth = 1;
-    // capHeight.guide = true;
+    capHeight.data.isGuide = true;
     capHeight.locked = true;
     const capHeightLabel = new paper.PointText({
       point: new paper.Point(-32760, metrics.capHeight),
@@ -223,7 +310,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     ascender.strokeColor = new paper.Color("#9ca3af");
     ascender.strokeWidth = 1;
-    // ascender.guide = true;
+    ascender.data.isGuide = true;
     ascender.locked = true;
     const ascenderLabel = new paper.PointText({
       point: new paper.Point(-32760, metrics.ascender),
@@ -241,7 +328,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     descender.strokeColor = new paper.Color("#9ca3af");
     descender.strokeWidth = 1;
-    // descender.guide = true;
+    descender.data.isGuide = true;
     descender.locked = true;
     const descenderLabel = new paper.PointText({
       point: new paper.Point(-32760, metrics.descender),
@@ -259,7 +346,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     );
     originLine.strokeColor = new paper.Color("#e5e7eb");
     originLine.strokeWidth = 1;
-    // originLine.guide = true;
+    originLine.data.isGuide = true;
     originLine.locked = true;
 
     // Advance width line
@@ -274,19 +361,14 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
       );
       advanceWidthLine.strokeColor = new paper.Color("#3b82f6");
       advanceWidthLine.strokeWidth = 2;
-      // advanceWidthLine.guide = true;
+      advanceWidthLine.data.isGuide = true;
       advanceWidthLine.locked = false;
     };
     updateAdvanceWidthLine();
 
-    // sample shape
-    const path = new paper.Path({
-      segments: [[200, 600], [500, 100], [800, 600]],
-      strokeColor: "black",
-      strokeWidth: 2,
-      closed: true,
-    });
-    path.fullySelected = true
+    // Draw glyph data
+    drawGlyph(glyphData);
+    paper.view.center = new paper.Point(glyphData.advanceWidth / 2, -300);
 
     const createHighlight = (point: paper.Point, isHandle: boolean = false) => {
       const circle = new paper.Path.Circle({
@@ -298,6 +380,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         guide: true,
         insert: true,
       });
+      circle.data.isGuide = true;
       highlightItemsRef.current.push(circle);
     };
 
@@ -394,7 +477,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         // 모든 글리프 윤곽선과 advance width 선을 함께 이동
         const deltaX = event.delta.x;
         paper.project.activeLayer.children.forEach((item: any) => {
-          if (item instanceof paper.Path && item.data.isGuide && /* !item.guide && */ item !== advanceWidthLine) {
+          if (item instanceof paper.Path && !item.data.isGuide && item !== advanceWidthLine) {
             item.translate(new paper.Point(deltaX, 0));
           }
         });
@@ -430,22 +513,26 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
 
         // 점의 좌표가 사각형 영역 안에 포함되는지 확인
         paper.project.activeLayer.children.forEach((item: any) => {
-        if (item instanceof paper.Path && !item.data.isGuide /* && !item.guide */) {
-          item.segments.forEach((seg: paper.Segment) => {
-            if (bounds.contains(seg.point)) {
-              if (!selectedSegmentsRef.current.includes(seg)) {
-                selectedSegmentsRef.current.push(seg);
+          if (item instanceof paper.Path && !item.data.isGuide) {
+            item.segments.forEach((seg: paper.Segment) => {
+              if (bounds.contains(seg.point)) {
+                if (!selectedSegmentsRef.current.includes(seg)) {
+                  selectedSegmentsRef.current.push(seg);
+                }
               }
-            }
-          });
-        }
-      });
+            });
+          }
+        });
 
         selectionRect.remove();
         selectionRect = null;
         refreshHighlights();
       }
       // paper.view.draw();
+
+      // 저장
+      const updatedData = syncPaperToData(paper.project);
+      onGlyphDataChange({ ...glyphData, outlineData: updatedData });
     }
 
     // Pen tool: draw new shapes
@@ -516,6 +603,10 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
 
     penToolRef.current.onMouseUp = () => {
       lastSegment = null;
+
+      // 저장
+      const updatedData = syncPaperToData(paper.project);
+      onGlyphDataChange({ ...glyphData, outlineData: updatedData });
     };
 
     // Curve tool: change curvature
@@ -592,6 +683,10 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         // paper.view.draw();
       }
       hitSegment = null;
+
+      // 저장
+      const updatedData = syncPaperToData(paper.project);
+      onGlyphDataChange({ ...glyphData, outlineData: updatedData });
     };
 
     // Hand tool --- move screen around
@@ -690,6 +785,10 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         currentRect = null;
       }
       rectStartPoint = null;
+
+      // 저장
+      const updatedData = syncPaperToData(paper.project);
+      onGlyphDataChange({ ...glyphData, outlineData: updatedData });
     };
 
     // Circle tool
@@ -748,6 +847,10 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         currentCircle = null;
       }
       circleStartPoint = null;
+
+      // 저장
+      const updatedData = syncPaperToData(paper.project);
+      onGlyphDataChange({ ...glyphData, outlineData: updatedData });
     };
 
     // Zoom tool
@@ -1012,7 +1115,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
                     // guide 속성 제거
                     if (item.children) {
                       item.children.forEach((child: any) => {
-                        child.guide = false;
+                        child.data.isGuide = false;
                         child.strokeColor = new paper.Color(0, 0, 0);
                         child.fillColor = null;
                       });
@@ -1101,7 +1204,7 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
         break;
       case 'RESET':
         view.zoom = 1.0;
-        view.center = new paper.Point(500, 500);
+        view.center = new paper.Point(glyphData.advanceWidth / 2, -300);
         // view.draw();
         break;
     }
@@ -1188,6 +1291,15 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     };
   }, []);
 
+  useEffect(() => {
+    paper.project.activeLayer.children.filter(
+      (item) => item instanceof paper.Path && !item.data?.isGuide && !item.locked
+    ).forEach(item => {
+      item.remove();
+    })
+    drawGlyph(glyphData);
+  }, [updatedTime]);
+
   return (
     <div className="w-full h-full bg-white overflow-hidden relative">
       <canvas
@@ -1212,3 +1324,79 @@ export default function GlyphEditor({ key, zoomAction, onZoomComplete, selectedT
     </div>
   )
 }
+
+
+
+
+
+interface GlyphPoint {
+  x: number;
+  y: number;
+  type?: 'line' | 'curve';
+  smooth?: boolean;
+}
+
+interface Contour {
+  points: GlyphPoint[];
+}
+
+interface GlyphOutlineData {
+  components: any[];
+  contours: Contour[];
+}
+
+/**
+ * Paper.js의 Path 아이템들을 정형화된 데이터 구조로 변환
+ */
+const syncPaperToData = (project: paper.Project): GlyphOutlineData => {
+  // 가이드나 그리드 레이어를 제외한 메인 레이어의 Path들만 추출
+  const glyphPaths = project.activeLayer.children.filter(
+    (item) => item instanceof paper.Path && !item.data?.isGuide && !item.locked
+  ) as paper.Path[];
+
+  const newContours: Contour[] = glyphPaths.map((path) => {
+    const points: GlyphPoint[] = [];
+
+    path.segments.forEach((segment) => {
+      // 1. 현재 점 (On-curve)
+      const pt = segment.point;
+      
+      // 2. 곡선 여부 판단 (핸들이 있으면 curve, 없으면 line)
+      const isCurve = !segment.handleIn.isZero() || !segment.handleOut.isZero();
+
+      // 3. 만약 이전 점의 handleOut과 현재 점의 handleIn이 있다면 제어점(Off-curve) 생성
+      // Paper.js의 핸들을 절대 좌표 제어점으로 역산하여 데이터에 삽입
+      if (isCurve && segment.previous) {
+        const prevSegment = segment.previous;
+        if (!prevSegment.handleOut.isZero()) {
+          points.push({
+            x: prevSegment.point.x + prevSegment.handleOut.x,
+            y: - (prevSegment.point.y + prevSegment.handleOut.y),
+            // smooth: true
+            // type 없음 = 제어점
+          });
+        }
+        if (!segment.handleIn.isZero()) {
+          points.push({
+            x: segment.point.x + segment.handleIn.x,
+            y: - (segment.point.y + segment.handleIn.y),
+            // smooth: true
+          });
+        }
+      }
+
+      points.push({
+        x: pt.x,
+        y: - pt.y,
+        type: isCurve ? 'curve' : 'line',
+        smooth: isCurve
+      });
+    });
+
+    return { points: points };
+  });
+
+  // console.log(JSON.stringify(newContours));
+
+  return { components: [], contours: newContours };
+};

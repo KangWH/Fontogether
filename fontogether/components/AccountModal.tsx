@@ -13,9 +13,11 @@ export default function AccountModal({ onClose }: AccountModalProps) {
   let user = useUserStore((s) => s.user);
   const clearUser = useUserStore((s) => s.clearUser);
 
-  if (!user)
-    // return null;
-    user = { email: "test@example.com", nickname: "TestUser", createdAt: "2024-01-01" };
+  if (!user) {
+    router.push('/');
+    return null;
+    // user = { email: "test@example.com", nickname: "TestUser", createdAt: "2024-01-01" };
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
@@ -36,7 +38,6 @@ export default function AccountModal({ onClose }: AccountModalProps) {
         <div className="p-4">
           <p className="font-bold text-xl mb-2">{user.nickname}</p>
           <p className="font-light text-xs text-gray-500 dark:text-zinc-400">{user.email}</p>
-          {/* <p>{user.createdAt} 가입</p> */}
           <div className="flex flex-row justify-end text-sm gap-2">
             <button
               className="mt-4 px-4 py-1 bg-gray-100 active:bg-gray-200 text-black dark:text-white rounded dark:bg-zinc-800 dark:active:bg-zinc-900"

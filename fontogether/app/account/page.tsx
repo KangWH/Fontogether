@@ -1,14 +1,15 @@
 "use client";
 
+import { koreanFullDate } from "@/components/dateFormatter";
 import Spacer from "@/components/spacer";
 import Topbar from "@/components/topbar";
 import TopbarButton from "@/components/topbarButton";
 
 import { useUserStore } from "@/store/userStore";
 
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
 
 export default function AccountPage() {
@@ -21,16 +22,121 @@ export default function AccountPage() {
   ]
 
   let [ selectedCategory, setSelectedCategory ] = useState(accountMenuCategory[0].value);
-  let [ isDeleteAccountModalOpen, setIsDeleteAccountModalOpen ] = useState(false);
-
-  let [ deleteAccountConformField, setDeleteAccountConformField ] = useState("");
 
   let user = useUserStore((s) => s.user);
   let setUser = useUserStore((s) => s.setUser);
+  let clearUser = useUserStore((s) => s.clearUser);
+
+  const [newNickname, setNewNickname] = useState(user?.nickname || '');
+
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
+  const oldPasswordFieldRef = useRef<HTMLInputElement>(null);
+  const newPasswordFieldRef = useRef<HTMLInputElement>(null);
+  const newPasswordConfirmFieldRef = useRef<HTMLInputElement>(null);
+
+  let [ isDeleteAccountModalOpen, setIsDeleteAccountModalOpen ] = useState(false);
+  let [ deleteAccountConformField, setDeleteAccountConformField ] = useState("");
+
+  const logoutHandler = () => {
+    clearUser();
+    router.push('/');
+  }
+
+  const nicknameChangeHandler = () => {
+    fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/users/${user.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname: newNickname })
+    })
+    .then(res => {
+      if (!res.ok) {
+        alert('닉네임 변경을 실패했습니다. 다시 시도해 주세요.');
+        return;
+      }
+
+      alert('닉네임이 변경되었습니다.');
+      setUser({ ...user, nickname: newNickname });
+    });
+  };
+
+  const passwordChangeHandler = () => {
+    setPasswordErrorMessage('');
+    if (oldPassword.length < 1) {
+      setPasswordErrorMessage('기존 암호를 입력해 주세요.');
+      oldPasswordFieldRef.current?.focus();
+      return;
+    }
+    if (newPassword.length < 1) {
+      setPasswordErrorMessage('새 암호를 입력해 주세요.');
+      newPasswordFieldRef.current?.focus();
+      return;
+    }
+    if (newPasswordConfirm.length < 1) {
+      setPasswordErrorMessage('암호 확인을 입력해 주세요.');
+      newPasswordConfirmFieldRef.current?.focus();
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      newPasswordConfirmFieldRef.current?.focus();
+      setPasswordErrorMessage('새 암호와 암호 확인이 일치하지 않습니다.');
+      return;
+    }
+
+    fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/users/${user.id}/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        oldPassword: oldPassword,
+        newPassword: newPassword
+      })
+    })
+    .then(res => {
+      if (!res.ok) {
+        setPasswordErrorMessage('기존 암호를 다시 확인해 주세요.');
+        return;
+      }
+
+      alert('암호가 변경되었습니다. 다시 로그인해 주세요.');
+      clearUser();
+      router.push('/');
+      return;
+    })
+    .catch(error => {
+      alert('네트워크 연결이 원활하지 않습니다.');
+      return;
+    });
+  };
+
+  const deleteAccountHandler = (confirmString: string) => {
+    if (confirmString !== user.email) {
+      alert('입력한 문자열이 정확하지 않습니다.');
+      return;
+    }
+
+    fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/users/${user.id}`, {
+      method: 'DELETE'
+    })
+    .then(response => {
+      if (!response.ok) {
+        alert('계정 삭제에 실패했습니다. 다시 시도해 주세요.');
+        return;
+      }
+
+      alert('계정이 삭제되었습니다.');
+      clearUser();
+      router.push('/');
+    })
+    .catch(error => {
+      console.error(error);
+      alert('계정 삭제에 실패했습니다. 다시 시도해 주세요.');
+    })
+  }
 
   if (!user)
-    // return null;
-    user = { email: "test@example.com", nickname: "TestUser", createdAt: "2024-01-01" };
+    return null;
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden relative">
@@ -51,7 +157,7 @@ export default function AccountPage() {
             {accountMenuCategory.map((category) => (
               <div
                 key={category.value}
-                className={`p-3 rounded-lg cursor-pointer ${selectedCategory === category.value ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''}`}
+                className={`p-3 rounded-lg select-none ${selectedCategory === category.value ? 'bg-gray-200 dark:bg-zinc-800 text-blue-500' : ''}`}
                 onClick={() => setSelectedCategory(category.value)}
               >
                 {category.label}
@@ -64,6 +170,9 @@ export default function AccountPage() {
           <Topbar>
             <p className="p-2 font-bold">계정 정보</p>
             <Spacer />
+            <TopbarButton onClick={logoutHandler}>
+              <LogOut size={18} strokeWidth={1.5} />
+            </TopbarButton>
           </Topbar>
           <div
             className="absolute mt-12 h-full overflow-y-auto"
@@ -72,15 +181,80 @@ export default function AccountPage() {
               <div className="p-6">
                 <p className="font-bold text-2xl mb-4">{user.nickname}</p>
                 <p className="text-sm text-gray-500 dark:text-zinc-400 mb-1">이메일: {user.email}</p>
-                <p className="text-sm text-gray-500 dark:text-zinc-400">가입일: {user.createdAt}</p>
+                <p className="text-sm text-gray-500 dark:text-zinc-400">가입일: {koreanFullDate(new Date(user.createdAt))}</p>
               </div>
             )}
+
             {selectedCategory === 'change_info' && (
               <div className="p-6">
-                <h2>닉네임 변경</h2>
-                <h2>암호 변경</h2>
+                <div className="pb-8 flex flex-col gap-2 flex-start">
+                  <h2 className="text-lg font-semibold mb-2">닉네임 변경</h2>
+                  <div className="flex flex-col gap-2">
+                    <p className="font-medium">새 닉네임</p>
+                    <input
+                      value={newNickname}
+                      onChange={(e) => setNewNickname(e.target.value)}
+                      className={`p-1 border border-gray-300 dark:border-zinc-700 rounded-md outline-none focus:border-blue-500`}
+                    />
+                  </div>
+                  <div className="flex flex-row">
+                    <Spacer />
+                    <button
+                      onClick={nicknameChangeHandler}
+                      className="px-6 py-1 bg-gray-100 dark:bg-zinc-900 rounded active:bg-gray-200 dark:active:bg-zinc-800"
+                    >
+                      변경
+                    </button>
+                  </div>
+                </div>
+                <div className="pb-8 flex flex-col gap-2 flex-start">
+                  <h2 className="text-lg font-semibold mb-2">암호 변경</h2>
+                  <div className="flex flex-col gap-2">
+                    <p className="font-medium">기존 암호</p>
+                    <input
+                      type="password"
+                      ref={oldPasswordFieldRef}
+                      value={oldPassword}
+                      onChange={(e) => {setPasswordErrorMessage(''); setOldPassword(e.target.value)}}
+                      className={`p-1 border border-gray-300 dark:border-zinc-700 rounded-md outline-none focus:border-blue-500`}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <p className="font-medium">새 암호</p>
+                    <input
+                      type="password"
+                      ref={newPasswordFieldRef}
+                      value={newPassword}
+                      onChange={(e) => {setPasswordErrorMessage(''); setNewPassword(e.target.value)}}
+                      className={`p-1 border border-gray-300 dark:border-zinc-700 rounded-md outline-none focus:border-blue-500`}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <p className="font-medium">암호 확인</p>
+                    <input
+                      type="password"
+                      ref={newPasswordConfirmFieldRef}
+                      value={newPasswordConfirm}
+                      onChange={(e) => {setPasswordErrorMessage(''); setNewPasswordConfirm(e.target.value)}}
+                      className={`p-1 border border-gray-300 dark:border-zinc-700 rounded-md outline-none focus:border-blue-500`}
+                    />
+                  </div>
+                  {passwordErrorMessage.length < 1 || (
+                    <p className='text-red-500'>{passwordErrorMessage}</p>
+                  )}
+                  <div className="flex flex-row">
+                    <Spacer />
+                    <button
+                      onClick={passwordChangeHandler}
+                      className="px-6 py-1 bg-gray-100 dark:bg-zinc-900 rounded active:bg-gray-200 dark:active:bg-zinc-800"
+                    >
+                      변경
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
+
             {selectedCategory === 'delete_account' && (
               <div className="p-6">
                 <p className="mb-2">회원을 탈퇴하시겠습니까?</p>
@@ -119,7 +293,7 @@ export default function AccountPage() {
                     type="text"
                     value={deleteAccountConformField}
                     onChange={(e) => setDeleteAccountConformField(e.target.value)}
-                    className="mt-2 w-full p-2 font-mono border border-gray-300 rounded-lg dark:bg-zinc-800 dark:border-zinc-700"
+                    className="mt-2 w-full p-1 font-mono border border-gray-300 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 outline-none focus:border-blue-500"
                   />
                 </div>
                 <div className="flex flex-row justify-end text-sm gap-2">
@@ -131,16 +305,7 @@ export default function AccountPage() {
                   </button>
                   <button
                     className="mt-4 px-4 py-1 bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 rounded"
-                    onClick={() => {
-                      if (deleteAccountConformField === user.email) {
-                        // Proceed with account deletion
-                        router.push('/');
-                        setUser(null);
-                        setIsDeleteAccountModalOpen(false);
-                      } else {
-                        alert("이메일이 일치하지 않습니다.");
-                      }
-                    }}
+                    onClick={() => {deleteAccountHandler(deleteAccountConformField)}}
                   >
                     탈퇴
                   </button>

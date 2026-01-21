@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Panel, Group } from "react-resizable-panels";
 import { SelectionArea, SelectionEvent } from "@viselect/react";
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, List, LayoutGrid, SquarePlus, Copy, Trash2, CircleUserRound, ArrowDownWideNarrow, Download } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, List, LayoutGrid, SquarePlus, Copy, Trash2, CircleUserRound, ArrowDownWideNarrow, Download, TextCursorInput } from "lucide-react";
 
 import Topbar from "@/components/topbar";
 import Spacer from "@/components/spacer";
@@ -15,6 +15,9 @@ import AccountModal from "@/components/AccountModal";
 import { useUserStore } from "@/store/userStore";
 import ExportProjectModal from "./exportProjectModal";
 import DeleteProjectModal from "./deleteProjectModal";
+import { koreanFullDateTime } from "@/components/dateFormatter";
+import RenameProjectModal from "./renameProjectModal";
+import { FontData, ProjectData } from "@/types/font";
 
 
 export default function GlyphsView() {
@@ -38,6 +41,7 @@ export default function GlyphsView() {
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [isRenameProjectModalOpen, setIsRenameProjectModalOpen] = useState(false);
   const [isExportProjectModalOpen, setIsExportProjectModalOpen] = useState(false);
   const [isDeleteProjectModalOpen, setIsDeleteProjectModalOpen] = useState(false);
 
@@ -50,7 +54,7 @@ export default function GlyphsView() {
     setIsRightCollapsed(!isRightCollapsed)
   }
 
-  const [viewType, setViewType] = useState<"grid" | "list">("grid");
+  const [viewType, setViewType] = useState<"grid" | "list">("list");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const router = useRouter();
@@ -63,39 +67,45 @@ export default function GlyphsView() {
     })
   }
 
-  let [ projects, setProjects ] = useState<Array<any> | null>(null);
+  let [ projects, setProjects ] = useState<ProjectData[] | null>(null);
   const filteredFonts = useMemo(() => {
-    if (currentFilter === 'all') {
-      return projects?.filter(proj => proj.owner_id === user?.id) || [];
-    } else if (currentFilter === 'sharedToMe') {
-      return projects?.filter(proj => proj.owner_id !== user?.id) || [];
-    } else if (currentFilter === 'sharedFromMe') {
-      return projects?.filter(proj => proj.owner_id === user?.id && proj.shared && proj.shared.length > 0) || [];
+    let filtered: ProjectData[] = [];
+    if (projects !== null) {
+      if (currentFilter === 'all') {
+        filtered = projects?.filter(proj => proj.ownerId === user?.id) || [];
+      } else if (currentFilter === 'sharedToMe') {
+        filtered = projects?.filter(proj => proj.ownerId !== user?.id) || [];
+      } else if (currentFilter === 'sharedFromMe') {
+        filtered = projects?.filter(proj => proj.ownerId === user?.id && proj.isShared) || [];
+      }
     }
-    return projects || [];
-  }, [currentFilter, projects]);
+    return filtered.sort((a, b) => {
+      if (currentSort === 'recentlyEdited') {
+        const dateA = new Date(a.updatedAt);
+        const dateB = new Date(b.updatedAt);
+        return dateA.getTime() - dateB.getTime();
+      } else if (currentSort === 'alphabetical') {
+        return a.title.localeCompare(b.title);
+      }
+      return 1;
+    })
+  }, [currentFilter, currentSort, projects]);
 
   const handleDoubleClick = (id: number) => {
     router.push(`/editor/${id}`)
   }
 
   useEffect(() => {
-    fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/user/${user?.id || 0}`)
+    fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/user/${user?.id}`)
     .then(res => res.json())
     .then(data => {
       setProjects(data);
+      console.log(data);
     })
     .catch(err => {
       console.error("Failed to fetch projects:", err);
-      // setProjects([]);
-      // alert("프로젝트를 불러오는 데 실패했습니다.");
-      setProjects([
-        { project_id: 1, owner_id: 0, title: "Sample Project 1", updated_at: "2024-06-01" },
-        { project_id: 2, owner_id: 0, title: "Sample Project 2", updated_at: "2024-06-02" },
-        { project_id: 3, owner_id: 1, title: "Sample Project 3", updated_at: "2024-06-03" },
-        { project_id: 4, owner_id: 2, title: "Sample Project 4", updated_at: "2024-06-04" },
-        { project_id: 5, owner_id: 0, title: "Sample Project 5", updated_at: "2024-06-05" },
-      ]);
+      setProjects([]);
+      alert("프로젝트를 불러오는 데 실패했습니다.");
     });
   }, []);
 
@@ -138,7 +148,7 @@ export default function GlyphsView() {
                 </TopbarButton>
               )}
 
-              <p className="p-1 font-bold">Projects</p>
+              <p className="p-1 font-bold truncate">프로젝트</p>
               <Spacer />
 
               {/* Change view mode */}
@@ -152,11 +162,10 @@ export default function GlyphsView() {
               </TopbarButtonGroup>
 
               {/* Sorting */}
-              <TopbarDropdownButton onClick={() => {sortSelectRef.current?.showPicker()}}>
+              <TopbarDropdownButton onClick={() => {sortSelectRef?.current?.showPicker()}}>
                 <ArrowDownWideNarrow size={18} strokeWidth={1.5} />
-                <select ref={sortSelectRef} className="text-sm outline-none appearance-none">
-                  <option value="recentlyEdited">최근 수정일</option>
-                  <option value="createdAt">생성일</option>
+                <select ref={sortSelectRef} value={currentSort} onChange={(e) => setCurrentSort(e.target.value)} className="text-sm outline-none appearance-none">
+                  <option value="recentlyEdited">최근 수정</option>
                   <option value="alphabetical">프로젝트 이름</option>
                 </select>
               </TopbarDropdownButton>
@@ -166,8 +175,11 @@ export default function GlyphsView() {
                 <TopbarGroupedButton onClick={() => {setIsNewProjectModalOpen(true)}}>
                   <SquarePlus size={18} strokeWidth={1.5} />
                 </TopbarGroupedButton>
-                <TopbarGroupedButton disabled={selectedIds.size < 1} >
+                {/* <TopbarGroupedButton disabled={selectedIds.size < 1} >
                   <Copy size={18} strokeWidth={1.5} />
+                </TopbarGroupedButton> */}
+                <TopbarGroupedButton onClick={() => {setIsRenameProjectModalOpen(true)}} disabled={selectedIds.size !== 1}>
+                  <TextCursorInput size={18} strokeWidth={1.5} />
                 </TopbarGroupedButton>
                 <TopbarGroupedButton onClick={() => {setIsExportProjectModalOpen(true)}} disabled={selectedIds.size < 1}>
                   <Download size={18} strokeWidth={1.5} />
@@ -201,12 +213,19 @@ export default function GlyphsView() {
               {projects !== null && filteredFonts.length === 0 && currentFilter !== "sharedToMe" && (
                 <div className="flex-grow flex flex-col items-center justify-center select-none">
                   <p className="text-2xl">프로젝트가 없습니다.</p>
-                  <p className="mt-4 text-gray-500 dark:text-gray-400">새 프로젝트를 만들어 시작하세요!</p>
+                  <p className="mt-4 text-gray-500 dark:text-gray-400">
+                    <button
+                      onClick={() => setIsNewProjectModalOpen(true)}
+                      className="text-blue-500 cursor-pointer"
+                    >
+                      새 프로젝트
+                    </button>
+                    를 만들어 시작하세요!</p>
                 </div>
               )}
               {projects !== null && filteredFonts.length === 0 && currentFilter === "sharedToMe" && (
                 <div className="flex-grow flex flex-col items-center justify-center select-none">
-                  <p className="text-2xl">나에게 공유된 프로젝트가 없습니다.</p>
+                  <p className="text-2xl">내게 공유된 프로젝트가 없습니다.</p>
                 </div>
               )}
 
@@ -226,17 +245,17 @@ export default function GlyphsView() {
                       <div className="sticky top-0 flex justify-between items-center p-2 pb-1 mb-1 border-b border-gray-300 dark:border-zinc-700 select-none font-semibold text-sm text-gray-400 dark:text-zinc-600">
                         <span className="basis-64 grow-[3]">프로젝트 이름</span>
                         <span className="basis-20 grow">소유자</span>
-                        <span className="basis-20 grow">마지막 수정일</span>
+                        <span className="basis-20 grow">최근 수정</span>
                       </div>
                     )}
                     {filteredFonts.map((data, index) => (
                       <div
-                        key={data.project_id}
-                        data-id={data.project_id}
-                        onDoubleClick={() => handleDoubleClick(data.project_id)}
+                        key={data.projectId}
+                        data-id={data.projectId}
+                        onDoubleClick={() => handleDoubleClick(data.projectId)}
                         className={`selectable-item rounded-lg
                           ${viewType === "list" ? `px-2 py-1 flex justify-between items-center ${(index & 1) ? "bg-gray-100 dark:bg-zinc-800" : ""}` : "px-4 py-2 flex flex-col items-center justify-center"}
-                          ${selectedIds.has(data.project_id) ? "!bg-blue-500 text-white" : ""}
+                          ${selectedIds.has(data.projectId) ? "!bg-blue-500 text-white" : ""}
                           select-none`
                         }
                       >
@@ -247,9 +266,9 @@ export default function GlyphsView() {
                           <span className="text-sm">{data.title}</span>
                         </>)}
                         {viewType === "list" && (<>
-                          <span className="basis-64 grow-[3]">{data.title}</span>
-                          <span className="basis-20 grow text-xs">{data.owner_id === user?.id ? "나" : `사용자 ${data.owner_id}`}</span>
-                          <span className="basis-20 grow text-xs opacity-50">{data.updated_at}</span>
+                          <span className="basis-64 grow-[3] text-sm">{data.title}</span>
+                          <span className="basis-20 grow text-xs">{data.ownerId === user?.id ? "나" : data.ownerNickname}</span>
+                          <span className="basis-20 grow text-xs opacity-50">{koreanFullDateTime(new Date(data.updatedAt))}</span>
                         </>)}
                       </div>
                     ))}
@@ -259,7 +278,7 @@ export default function GlyphsView() {
             </div>
           </Panel>
 
-          {isRightCollapsed || (
+          {true || isRightCollapsed || (
             <Panel
               id="right"
               defaultSize={240}
@@ -280,16 +299,60 @@ export default function GlyphsView() {
           )}
 
           {isNewProjectModalOpen && (
-            <NewProjectModal onClose={() => {setIsNewProjectModalOpen(false)}} />
+            <NewProjectModal
+              onClose={() => {
+                setIsNewProjectModalOpen(false);
+                fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/user/${user?.id}`)
+                  .then(res => res.json())
+                  .then((data: ProjectData[]) => {
+                    console.log(data)
+                    setProjects(data)
+                  });
+              }}
+            />
           )}
           {isAccountModalOpen && (
             <AccountModal onClose={() => {setIsAccountModalOpen(false)}} />
           )}
+          {isRenameProjectModalOpen && (
+            <RenameProjectModal
+              userId={user.id}
+              projectId={[...selectedIds][0]}
+              onClose={(newTitle) => {
+                if (newTitle !== null) {
+                  setProjects((prev: ProjectData[] | null) => {
+                    const refArray = prev || [];
+                    const projectIndex = refArray?.findIndex(p => p.projectId === [...selectedIds][0]);
+                    if (projectIndex >= 0) {
+                      const newProjects = [...refArray];
+                      newProjects[projectIndex].title = newTitle;
+                      return newProjects;
+                    } else {
+                      return [];
+                    }
+                  })
+                }
+                setIsRenameProjectModalOpen(false);
+              }}
+            />
+          )}
           {isDeleteProjectModalOpen && (
-            <DeleteProjectModal ids={selectedIds} onClose={() => {setIsDeleteProjectModalOpen(false)}} />
+            <DeleteProjectModal
+              userId={user?.id}
+              ids={selectedIds}
+              onClose={() => {
+                setIsDeleteProjectModalOpen(false)
+                fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/user/${user?.id}`)
+                  .then(res => res.json())
+                  .then((data: ProjectData[]) => {
+                    console.log(data)
+                    setProjects(data)
+                  });
+              }}
+            />
           )}
           {isExportProjectModalOpen && (
-            <ExportProjectModal onClose={() => {setIsExportProjectModalOpen(false)}}></ExportProjectModal>
+            <ExportProjectModal projectIds={selectedIds} onClose={() => {setIsExportProjectModalOpen(false)}}></ExportProjectModal>
           )}
         </Group>
       </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function ExportProjectModal({ onClose }: { onClose: () => void }) {
+export default function ExportProjectModal({ projectIds, onClose }: { projectIds: Set<number>, onClose: () => void }) {
   let [ selectedFormat, setSelectedFormat ] = useState<string>('ufo');
 
   return (
@@ -42,6 +42,16 @@ export default function ExportProjectModal({ onClose }: { onClose: () => void })
             type="button"
             className="inline-flex justify-center rounded-md border border-transparent bg-blue-500 px-6 py-1 text-sm font-medium text-white active:bg-blue-600 disabled:bg-blue-500/50"
             onClick={() => {
+              // const responses = [...projectIds].map(id => fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${id}/export`));
+              [...projectIds].forEach(id => {
+                // fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${id}/export`)
+                // .then(res => {
+                //   if (!res.ok) {
+                //     return;
+                //   }
+                // })
+                window.open(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${id}/export`, '_blank')
+              })
               onClose();
             }}
           >

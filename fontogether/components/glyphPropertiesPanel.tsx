@@ -1,19 +1,20 @@
 "use client";
 
 import { AGL_DATA } from "@/data/AGL_DATA";
-import { GlyphData_OLD, FontData } from "@/types/font";
+import { GlyphData, FontData } from "@/types/font";
 import { useState, useEffect, useRef } from "react";
 
 interface GlyphPropertiesPanelProps {
-  glyphs: GlyphData_OLD[];
+  glyphs: GlyphData[];
   fontData: FontData;
-  onGlyphsChange: (glyphs: GlyphData_OLD[]) => void;
+  onGlyphsChange: (glyphs: GlyphData[]) => void;
 }
 
 export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange }: GlyphPropertiesPanelProps) {
   const isMultiple = glyphs.length > 1;
   const firstGlyph = glyphs[0];
 
+  const [nameField, setNameField] = useState(firstGlyph?.glyphName);
   const [unicodeField, setUnicodeField] = useState<string>('');
   const unicodeFieldRef = useRef<HTMLInputElement>(null);
 
@@ -25,14 +26,19 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
     return codes;
   };
   const sanitizeUnicodeField = () => {
-    setUnicodeField(firstGlyph.unicode?.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') || '');
+    setUnicodeField(firstGlyph.unicodes.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') || '');
   };
   const [unicodeFieldInvalid, setUnicodeFieldInvalid] = useState(false);
 
   useEffect(() => {
     if (document.activeElement === unicodeFieldRef.current) return;
-    setUnicodeField(firstGlyph.unicode?.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') || '');
-  }, [glyphs.map(g => g.id)]);
+
+    const glyphName = firstGlyph ? firstGlyph.glyphName : '';
+    setNameField(glyphName);
+
+    const unicodeString = firstGlyph ? firstGlyph.unicodes.map(n => n.toString(16).toUpperCase().padStart(4, '0')).join(', ') : '';
+    setUnicodeField(unicodeString);
+  }, [glyphs.map(g => g.glyphUuid)]);
 
   const updateGlyph = (field: string, value: any) => {
     onGlyphsChange(
@@ -64,25 +70,27 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
     <div className="h-full overflow-y-auto p-4 space-y-4 text-sm">
       {/* 메타데이터 */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold">메타데이터{isMultiple || (<> — 글리프 {firstGlyph.id}</>)}</h3>
+        <h3 className="text-sm font-bold">글리프 메타데이터</h3>
         <div>
           <label className="block text-sm font-medium mb-1">글리프 이름</label>
           <input
             type="text"
-            value={firstGlyph.name}
-            onChange={(e) => updateGlyph('name', e.target.value)}
+            value={nameField}
+            onChange={(e) => {setNameField(e.target.value); updateGlyph('glyphName', e.target.value)}}
             disabled={isMultiple}
             className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 disabled:opacity-50"
           />
           <button
             onClick={() => {
-              if (firstGlyph.unicode?.[0]) {
-                const aglName = AGL_DATA[firstGlyph.unicode[0]];
+              if (firstGlyph.unicodes[0]) {
+                const aglName = AGL_DATA[firstGlyph.unicodes[0]];
                 if (aglName) {
-                  updateGlyph('name', aglName);
+                  updateGlyph('glyphName', aglName);
+                } else if (firstGlyph.unicodes.length > 0) {
+                  const hexString = firstGlyph.unicodes[0].toString(16).toUpperCase().padStart(4, '0');
+                  updateGlyph('glyphName', `uni${hexString}`);
                 } else {
-                  const hexString = firstGlyph.unicode[0].toString(16).toUpperCase().padStart(4, '0');
-                  updateGlyph('name', `uni${hexString}`)
+                  updateGlyph('glyphName', 'glyph');
                 }
               }
             }}
@@ -113,10 +121,11 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
             onBlur={() => sanitizeUnicodeField()}
           />
         </div>
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium mb-1">OpenType Glyph class</label>
           <select
-            value={firstGlyph.openTypeClass || 'auto'}
+            // value={firstGlyph.openTypeClass || 'auto'}
+            value={'auto'}
             onChange={(e) => updateGlyph('openTypeClass', e.target.value || undefined)}
             className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
           >
@@ -126,18 +135,19 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
             <option value="mark">Mark</option>
             <option value="component">Component</option>
           </select>
-        </div>
+        </div> */}
       </div>
 
       {/* 메트릭 */}
       <div className="space-y-4">
         <h3 className="text-sm font-bold">메트릭</h3>
         <div className="grid grid-cols-2 gap-2">
-          <div>
+          {/* <div>
             <label className="block text-xs font-medium mb-1">LSB</label>
             <input
               type="number"
-              value={firstGlyph.lsb || 0}
+              // value={firstGlyph.lsb || 0}
+              value={0}
               onChange={(e) => updateMetric('lsb', Math.round(Number(e.target.value)))}
               className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
             />
@@ -146,13 +156,14 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
             <label className="block text-xs font-medium mb-1">RSB</label>
             <input
               type="number"
-              value={firstGlyph.rsb || 0}
+              // value={firstGlyph.rsb || 0}
+              value={0}
               onChange={(e) => updateMetric('rsb', Math.round(Number(e.target.value)))}
               className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
             />
-          </div>
+          </div> */}
           <div>
-            <label className="block text-xs font-medium mb-1">AW</label>
+            <label className="block text-xs font-medium mb-1">글리프 폭</label>
             <input
               type="number"
               value={firstGlyph.advanceWidth}
@@ -167,7 +178,8 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
               <label className="block text-xs font-medium mb-1">TSB</label>
               <input
                 type="number"
-                value={firstGlyph.tsb || 0}
+                // value={firstGlyph.tsb || 0}
+                value={0}
                 onChange={(e) => updateMetric('tsb', Math.round(Number(e.target.value)))}
                 className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
               />
@@ -176,7 +188,8 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
               <label className="block text-xs font-medium mb-1">BSB</label>
               <input
                 type="number"
-                value={firstGlyph.bsb || 0}
+                // value={firstGlyph.bsb || 0}
+                value={0}
                 onChange={(e) => updateMetric('bsb', Math.round(Number(e.target.value)))}
                 className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
               />
@@ -185,7 +198,8 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
               <label className="block text-xs font-medium mb-1">AH</label>
               <input
                 type="number"
-                value={firstGlyph.advanceHeight || 0}
+                // value={firstGlyph.advanceHeight || 0}
+                value={0}
                 onChange={(e) => updateMetric('advanceHeight', Math.round(Number(e.target.value)))}
                 className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800"
               />
@@ -195,7 +209,7 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
       </div>
 
       {/* 태그 및 그룹 */}
-      <div className="space-y-4">
+      {/* <div className="space-y-4">
         <h3 className="text-sm font-bold">태그 및 그룹</h3>
         <div>
           <label className="block text-xs font-medium mb-1">태그</label>
@@ -204,16 +218,17 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
               <button
                 key={tag}
                 onClick={() => {
-                  const currentTags = firstGlyph.tags || [];
-                  const newTags = currentTags.includes(tag)
-                    ? currentTags.filter(t => t !== tag)
-                    : [tag]; // 하나만 선택 가능
-                  updateGlyph('tags', newTags);
+                  // const currentTags = firstGlyph.tags || [];
+                  // const newTags = currentTags.includes(tag)
+                  //   ? currentTags.filter(t => t !== tag)
+                  //   : [tag]; // 하나만 선택 가능
+                  // updateGlyph('tags', newTags);
                 }}
                 className={`px-2 py-1 text-xs rounded-full ${
-                  firstGlyph.tags?.includes(tag)
-                    ? `bg-${tag}-500 text-white`
-                    : 'bg-gray-200 dark:bg-zinc-700'
+                  // firstGlyph.tags?.includes(tag)
+                  //   ? `bg-${tag}-500 text-white`
+                    // : 'bg-gray-200 dark:bg-zinc-700'
+                    'bg-gray-200 dark:bg-zinc-700'
                 }`}
               >
                 {tag}
@@ -228,13 +243,14 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
               <label key={group} className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={firstGlyph.groups?.includes(group) || false}
+                  // checked={firstGlyph.groups?.includes(group) || false}
+                  checked={false}
                   onChange={(e) => {
-                    const currentGroups = firstGlyph.groups || [];
-                    const newGroups = e.target.checked
-                      ? [...currentGroups, group]
-                      : currentGroups.filter(g => g !== group);
-                    updateGlyph('groups', newGroups);
+                    // const currentGroups = firstGlyph.groups || [];
+                    // const newGroups = e.target.checked
+                    //   ? [...currentGroups, group]
+                    //   : currentGroups.filter(g => g !== group);
+                    // updateGlyph('groups', newGroups);
                   }}
                   className="w-4 h-4"
                 />
@@ -243,18 +259,19 @@ export default function GlyphPropertiesPanel({ glyphs, fontData, onGlyphsChange 
             ))}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* 메모 */}
-      <div className="space-y-4">
+      {/* <div className="space-y-4">
         <h3 className="text-sm font-bold">메모</h3>
         <textarea
-          value={firstGlyph.note || ''}
+          // value={firstGlyph.note || ''}
+          value={""}
           onChange={(e) => updateGlyph('note', e.target.value)}
           className="w-full px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-sm"
           rows={4}
         />
-      </div>
+      </div> */}
 
       {isMultiple && (
         <div className="text-xs text-gray-500">

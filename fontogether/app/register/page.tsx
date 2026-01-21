@@ -19,17 +19,17 @@ export default function LoginView() {
   const registerHandler = async () => {
     if (email.trim() === '') {
       emailRef.current?.focus();
-      setErrorMessage('이메일을 입력해주세요.');
+      setErrorMessage('이메일을 입력해 주세요.');
       return;
     }
     if (password.trim() === '') {
       passwordRef.current?.focus();
-      setErrorMessage('암호를 입력해주세요.');
+      setErrorMessage('암호를 입력해 주세요.');
       return;
     }
     if (passwordConfirm.trim() === '') {
       passwordConfirmRef.current?.focus();
-      setErrorMessage('암호 확인을 입력해주세요.');
+      setErrorMessage('암호 확인을 입력해 주세요.');
       return;
     }
     if (password !== passwordConfirm) {
@@ -39,12 +39,12 @@ export default function LoginView() {
     }
     if (nickname.trim() === '') {
       nicknameRef.current?.focus();
-      setErrorMessage('닉네임을 입력해주세요.');
+      setErrorMessage('닉네임을 입력해 주세요.');
       return;
     }
 
     try {
-      const response = await fetch('http://10.249.16.96:444/api/users/signup', {
+      const response = await fetch(process.env.NEXT_PUBLIC_SERVER_URI + '/api/users/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,19 +73,19 @@ export default function LoginView() {
         <div className="mx-auto w-84 flex flex-col gap-4">
           <div className="flex flex-col justify-start text-left">
             <p className="pb-2">이메일</p>
-            <input type="text" value={email} ref={emailRef} onChange={(e) => {setEmail(e.target.value)}} className="p-1 rounded-sm border border-gray-500 outline-none transition-color focus:border-blue-500" />
+            <input type="text" value={email} ref={emailRef} onChange={(e) => {setEmail(e.target.value)}} className="p-1 rounded border border-gray-300 dark:border-zinc-700 outline-none transition-color focus:border-blue-500" />
           </div>
           <div className="flex flex-col justify-start text-left">
             <p className="pb-2">암호</p>
-            <input type="password" value={password} ref={passwordRef} onChange={(e) => {setPassword(e.target.value)}} className="p-1 rounded-sm border border-gray-500 outline-none transition-color focus:border-blue-500" />
+            <input type="password" value={password} ref={passwordRef} onChange={(e) => {setPassword(e.target.value)}} className="p-1 rounded border border-gray-300 dark:border-zinc-700 outline-none transition-color focus:border-blue-500" />
           </div>
           <div className="flex flex-col justify-start text-left">
             <p className="pb-2">암호 확인</p>
-            <input type="password" value={passwordConfirm} ref={passwordConfirmRef} onChange={(e) => {setPasswordConfirm(e.target.value)}} className="p-1 rounded-sm border border-gray-500 outline-none transition-color focus:border-blue-500" />
+            <input type="password" value={passwordConfirm} ref={passwordConfirmRef} onChange={(e) => {setPasswordConfirm(e.target.value)}} className="p-1 rounded border border-gray-300 dark:border-zinc-700 outline-none transition-color focus:border-blue-500" />
           </div>
           <div className="flex flex-col justify-start text-left">
             <p className="pb-2">닉네임</p>
-            <input type="text" value={nickname} ref={nicknameRef} onChange={(e) => {setNickname(e.target.value)}} className="p-1 rounded-sm border border-gray-500 outline-none transition-color focus:border-blue-500" />
+            <input type="text" value={nickname} ref={nicknameRef} onChange={(e) => {setNickname(e.target.value)}} className="p-1 rounded border border-gray-300 dark:border-zinc-700 outline-none transition-color focus:border-blue-500" />
           </div>
           <div className="text-red-500">{errorMessage}</div>
           <div className="flex flex-row justify-end gap-2 text-sm">

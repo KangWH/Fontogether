@@ -90,7 +90,7 @@ export default function LoginView() {
                 type="text"
                 ref={emailRef}
                 value={email}
-                onChange={(e) => setEmail(e.target.value)} className="p-1 rounded-sm border border-gray-500 outline-none transition-colors focus:border-blue-500"
+                onChange={(e) => setEmail(e.target.value)} className="p-1 rounded border border-gray-300 dark:border-zinc-700 outline-none transition-colors focus:border-blue-500"
               />
             </div>
             <div className="flex flex-col justify-start text-left">
@@ -99,7 +99,7 @@ export default function LoginView() {
                 type="password"
                 ref={passwordRef}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)} className="p-1 rounded-sm border border-gray-500 outline-none transition-colors focus:border-blue-500"
+                onChange={(e) => setPassword(e.target.value)} className="p-1 rounded border border-gray-300 dark:border-zinc-700 outline-none transition-colors focus:border-blue-500"
               />
             </div>
             <div className="text-red-500">{errorMessage}</div>
