@@ -103,17 +103,27 @@ const subscribeToTopics = (client, projectId, myUserId) => {
 
 ### A. 글리프 업데이트 (그리기)
 ```javascript
-client.publish({
-    destination: '/app/glyph/update',
-    body: JSON.stringify({
-        projectId: 1,
-        glyphName: 'A',
-        unicodes: [65], // Optional (Decimal List)
-        outlineData: JSON.stringify(currentContours), // 경로 데이터를 JSON 문자열로 변환
-        advanceWidth: 600,
-        userId: 1,
-        nickname: 'MyNick'
-    })
+// 안전한 전송을 위한 래퍼 함수 예시
+const safelyPublish = (client, destination, body) => {
+    if (client && client.active) {
+        client.publish({
+            destination: destination,
+            body: JSON.stringify(body)
+        });
+    } else {
+        console.warn('WebSocket이 연결되지 않아 메시지를 보낼 수 없습니다.');
+    }
+};
+
+// 사용 예시
+safelyPublish(client, '/app/glyph/update', {
+    projectId: 1,
+    glyphName: 'A',
+    unicodes: [65], 
+    outlineData: JSON.stringify(currentContours),
+    advanceWidth: 600,
+    userId: 1,
+    nickname: 'MyNick'
 });
 ```
 
