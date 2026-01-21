@@ -697,11 +697,11 @@ export default function GlyphsView() {
             <Spacer />
 
             {/* Debug */}
-            <TopbarButton
+            {/* <TopbarButton
               onClick={() => setIsDebugDialogShown(true)}
             >
               <Info size={18} strokeWidth={1.5} />
-            </TopbarButton>
+            </TopbarButton> */}
 
             {/* Glyph operations (only in main view) */}
             {activeTab === null && (
@@ -853,11 +853,11 @@ export default function GlyphsView() {
               </TopbarButtonGroup>
             </>)}
 
-            <TopbarButton
+            {/* <TopbarButton
               onClick={() => setShowFeatureModal(true)}
             >
               <Ligature size={18} strokeWidth={1.5} />
-            </TopbarButton>
+            </TopbarButton> */}
 
             {isRightCollapsed && (
               <TopbarButton onClick={() => setIsRightCollapsed(false)}>

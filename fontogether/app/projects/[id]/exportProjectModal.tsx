@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function ExportProjectModal({ projectIds, onClose }: { projectIds: Set<number>, onClose: () => void }) {
+export default function ExportProjectModal({ projectIds, onExport, onClose }: { projectIds: Set<number>, onExport: (onClose: () => void) => void, onClose: () => void }) {
   let [ selectedFormat, setSelectedFormat ] = useState<string>('ufo');
 
   return (
@@ -24,9 +24,6 @@ export default function ExportProjectModal({ projectIds, onClose }: { projectIds
           <select value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)} className="w-full mt-2 mb-4 px-2 py-1 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-sm">
             <option value="ufo">UFO</option>
             <option value="otf">OTF</option>
-            <option value="ttf">TTF</option>
-            <option value="woff">WOFF</option>
-            <option value="woff2">WOFF2</option>
           </select>
         </div>
 
@@ -42,17 +39,12 @@ export default function ExportProjectModal({ projectIds, onClose }: { projectIds
             type="button"
             className="inline-flex justify-center rounded-md border border-transparent bg-blue-500 px-6 py-1 text-sm font-medium text-white active:bg-blue-600 disabled:bg-blue-500/50"
             onClick={() => {
-              // const responses = [...projectIds].map(id => fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${id}/export`));
-              [...projectIds].forEach(id => {
-                // fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${id}/export`)
-                // .then(res => {
-                //   if (!res.ok) {
-                //     return;
-                //   }
-                // })
-                window.open(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${id}/export`, '_blank')
-              })
-              onClose();
+              if (selectedFormat === 'ufo') {
+                window.open(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${[...projectIds][0]}/export`, '_blank')
+                onClose();
+              } else {
+                onExport(onClose);
+              }
             }}
           >
             확인

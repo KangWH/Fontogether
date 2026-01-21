@@ -17,7 +17,8 @@ import ExportProjectModal from "./exportProjectModal";
 import DeleteProjectModal from "./deleteProjectModal";
 import { koreanFullDateTime } from "@/components/dateFormatter";
 import RenameProjectModal from "./renameProjectModal";
-import { FontData, ProjectData } from "@/types/font";
+import { FontData, GlyphData, ProjectData, RawGlyphData } from "@/types/font";
+import { convertToOpenType } from "@/components/convertToOpenType";
 
 
 export default function GlyphsView() {
@@ -152,14 +153,14 @@ export default function GlyphsView() {
               <Spacer />
 
               {/* Change view mode */}
-              <TopbarButtonGroup>
+              {/* <TopbarButtonGroup>
                 <TopbarGroupedButton selected={viewType === "list"} onClick={() => setViewType("list")}>
                   <List size={18} strokeWidth={1.5} />
                 </TopbarGroupedButton>
                 <TopbarGroupedButton selected={viewType === "grid"} onClick={() => setViewType("grid")}>
                   <LayoutGrid size={18} strokeWidth={1.5} />
                 </TopbarGroupedButton>
-              </TopbarButtonGroup>
+              </TopbarButtonGroup> */}
 
               {/* Sorting */}
               <TopbarDropdownButton onClick={() => {sortSelectRef?.current?.showPicker()}}>
@@ -181,7 +182,7 @@ export default function GlyphsView() {
                 <TopbarGroupedButton onClick={() => {setIsRenameProjectModalOpen(true)}} disabled={selectedIds.size !== 1}>
                   <TextCursorInput size={18} strokeWidth={1.5} />
                 </TopbarGroupedButton>
-                <TopbarGroupedButton onClick={() => {setIsExportProjectModalOpen(true)}} disabled={selectedIds.size < 1}>
+                <TopbarGroupedButton onClick={() => {setIsExportProjectModalOpen(true)}} disabled={selectedIds.size !== 1}>
                   <Download size={18} strokeWidth={1.5} />
                 </TopbarGroupedButton>
                 <TopbarGroupedButton onClick={() => {setIsDeleteProjectModalOpen(true)}} disabled={selectedIds.size < 1}>
@@ -352,7 +353,46 @@ export default function GlyphsView() {
             />
           )}
           {isExportProjectModalOpen && (
-            <ExportProjectModal projectIds={selectedIds} onClose={() => {setIsExportProjectModalOpen(false)}}></ExportProjectModal>
+            <ExportProjectModal
+              projectIds={selectedIds}
+              onExport={(onClose) => {
+                if (!projects)
+                  return;
+
+                const targetId = [...selectedIds][0];
+                const targetProjectData = projects.find(p => p.projectId === targetId);
+
+                if (!targetProjectData)
+                  return;
+
+                fetch(process.env.NEXT_PUBLIC_SERVER_URI + `/api/projects/${targetId}/glyphs`)
+                .then((res) => res.json())
+                .then((rawData: RawGlyphData[]) => {
+                  const glyphData: GlyphData[] = rawData.map(rgd => { return {
+                    advanceHeight: rgd.advanceHeight,
+                    advanceWidth: rgd.advanceWidth,
+                    formatVersion: rgd.formatVersion,
+                    glyphName: rgd.glyphName,
+                    glyphUuid: rgd.glyphUuid,
+                    lastModifiedBy: rgd.lastModifiedBy,
+                    layerName: rgd.layerName,
+                    outlineData: JSON.parse(rgd.outlineData),
+                    projectId: rgd.projectId,
+                    properties: JSON.parse(rgd.properties), // ??
+                    unicodes: rgd.unicodes.map((str: string) => parseInt(str, 16)),
+                    updatedAt: new Date(rgd.updatedAt),
+                  } as GlyphData});
+                  const convertedFont = convertToOpenType(targetProjectData, 0, 0, 0, glyphData);
+                  convertedFont.download();
+                  onClose();
+                })
+                .catch((err) => {
+                  console.error(err);
+                  alert('다운로드에 실패했습니다. 다시 시도해 주세요.');
+                });
+              }}
+              onClose={() => {setIsExportProjectModalOpen(false)}}
+            />
           )}
         </Group>
       </div>

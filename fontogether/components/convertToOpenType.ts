@@ -24,7 +24,7 @@ export function convertToOpenType(
   const notdefGlyph = new opentype.Glyph({
     name: '.notdef',
     unicode: 0,
-    advanceWidth: unitsPerEm * 0.6,
+    advanceWidth: fontInfo.unitsPerEm * 0.6,
     path: new opentype.Path()
   });
 
