@@ -65,7 +65,7 @@ export default function LoginView() {
   return (
     <div className="h-screen py-15 bg-gray-100 dark:bg-zinc-900 text-center">
       <div className="mx-auto mb-12 font-thin text-6xl tracking-[0.2em]">FONTOGETHER</div>
-      <div className="font-light text-lg tracking-widest">대충 있어 보이는 한 줄 소개를 여기에 입력</div>
+      <div className="font-light text-lg tracking-widest">함께 폰트 만들기</div>
       {/* Inner container */}
       <div className="mx-auto my-20 w-128 py-10 bg-white dark:bg-black rounded-xl shadow-md">
         <div className="mb-8 text-2xl">회원가입</div>

@@ -140,7 +140,7 @@ export default function AccountPage() {
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden relative">
-      <Group direction="horizontal">
+      <Group orientation="horizontal">
         <Panel
           defaultSize={240}
           minSize={240}
